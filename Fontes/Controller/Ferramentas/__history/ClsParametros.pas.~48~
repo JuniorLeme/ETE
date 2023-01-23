@@ -1,0 +1,946 @@
+unit ClsParametros;
+
+interface
+
+uses
+  System.SysUtils, System.IniFiles, System.Win.Registry, Winapi.Windows,
+  System.Classes,
+  vcl.Dialogs, Xml.XMLIntf, Xml.XMLDoc, ClseProvaConst, ClsServidorControl,
+  ClsListaProdutoID;
+
+var
+  Debug: Boolean;
+
+type
+  TParametros = class(TComponent)
+
+  protected
+    ArqXML: IXMLDocument;
+    FNomeSistema: String;
+    FVersao: String;
+    FComputador: String;
+    FCfc: String;
+    FScanners: string;
+    FTipoBiometria: string;
+    FDigital: string;
+    FFoto: string;
+
+    FListaServidores: TStringList;
+    FListaOperacoes: TStringList;
+    FListaOperacoesTimeOut: TStringList;
+    FUsuario: String;
+    FSenha: String;
+    Fultimo_acesso: String;
+    FSO: String;
+    FMAC: String;
+    FIdentificacao: string;
+    FAguardarAviso: Boolean;
+    FNumeroAviso: Integer;
+    FTerminarProva: Boolean;
+
+    FProxyURL: String;
+    FProxyUsername: String;
+    FProxyPassword: String;
+
+    function CriaNoSistemas(NoSistemas: IXMLNode): Boolean;
+    function CriaNoSistemaCRC(NoSistemas: IXMLNode): Boolean;
+    function LerParametrosCRC: Boolean;
+
+  private
+    function DirProgDataCriar: widestring;
+    function GetAguardarAviso: Boolean;
+    procedure SetAguardarAviso(const Value: Boolean);
+  public
+
+    Property ProxyURL: String read FProxyURL write FProxyURL;
+    Property ProxyUsername: String read FProxyUsername write FProxyUsername;
+    Property ProxyPassword: String read FProxyPassword write FProxyPassword;
+
+    // var
+    Property AguardarAviso: Boolean read GetAguardarAviso
+      write SetAguardarAviso;
+    Property NumeroAviso: Integer read FNumeroAviso write FNumeroAviso;
+    Property TerminarProva: Boolean read FTerminarProva write FTerminarProva;
+
+    Property NomeSistema: String read FNomeSistema write FNomeSistema;
+    Property Versao: String read FVersao write FVersao;
+    Property Computador: String read FComputador write FComputador;
+    Property SO: String read FSO write FSO;
+    Property MAC: String read FMAC write FMAC;
+    Property Cfc: String read FCfc write FCfc;
+    Property ListaServidores: TStringList read FListaServidores
+      write FListaServidores;
+    Property ListaOperacoes: TStringList read FListaOperacoes
+      write FListaOperacoes;
+    Property ListaOperacoesTimeOut: TStringList read FListaOperacoesTimeOut
+      write FListaOperacoesTimeOut;
+    Property Usuario: String read FUsuario write FUsuario;
+    Property Senha: String read FSenha write FSenha;
+    Property Ultimo_Acesso: String read Fultimo_acesso write Fultimo_acesso;
+    Property Identificacao: String read FIdentificacao write FIdentificacao;
+    Property Scanners: string read FScanners write FScanners;
+    Property TipoBiometria: string read FTipoBiometria write FTipoBiometria;
+    Property Digital: string read FDigital write FDigital;
+    Property Foto: string read FFoto write FFoto;
+
+    function Encripta(Value: String): String;
+    function Decripta(Value: String): String;
+
+    function ApagaParametrosCRC: Boolean;
+    function GravarParametrosCRC: Boolean;
+    Procedure CriarParametros;
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
+var
+  Parametros: TParametros;
+
+  TelaTerminarAplicacao: Boolean;
+  TelaLogin: Boolean;
+  TelaIdentificaCandidato: Boolean;
+  TelaCadastraCandidato: Boolean;
+
+  TelaFoto: Boolean;
+  TelaBiometria: Boolean;
+  TelaBiometriaFoto: Boolean;
+  TelaExameBiometriaFoto: Boolean;
+  TelaResultadoBiometriaFoto: Boolean;
+
+  TelaInformacoes: Boolean;
+  TelaTeclado: Boolean;
+  TelaConfirmacao: Boolean;
+  TelaQuestionario: Boolean;
+  TelaResultado: Boolean;
+  TelaAvisos: Boolean;
+
+implementation
+
+uses ClsFuncoes, cipher;
+
+function TParametros.ApagaParametrosCRC: Boolean;
+var
+  XML_Sist: IXMLDocument;
+  NoSistemas, NoSistema: IXMLNode;
+  I1: Integer;
+begin
+  Result := True;
+
+  try
+
+    XML_Sist := NewXMLDocument;
+    XML_Sist.Options := [doNodeAutoIndent];
+
+    if FileExists(DirProgDataCriar + '\' + strNomeArq) then
+      XML_Sist.LoadFromFile(DirProgDataCriar + '\' + strNomeArq);
+
+    XML_Sist.Active := True;
+
+    NoSistemas := XML_Sist.ChildNodes.FindNode('sistemas');
+
+    if NoSistemas = nil then
+      EXIT;
+
+    for I1 := NoSistemas.ChildNodes.Count - 1 downto 0 do
+    begin
+
+      NoSistema := NoSistemas.ChildNodes.Get(I1);
+
+      if (NoSistema <> nil) and
+        (LowerCase(NoSistema.Attributes['id']) = LowerCase(FNomeSistema)) then
+      begin
+        NoSistemas.ChildNodes.Delete(I1);
+      end;
+
+    end;
+
+    XML_Sist.SaveToFile(DirProgDataCriar + '\' + strNomeArq);
+
+  except
+    ArquivoLog.GravaArquivoLog('Analisar leitura de parametros da CRC.' +
+      DirProgDataCriar + '\' + strNomeArq);
+  end;
+
+end;
+
+constructor TParametros.Create;
+begin
+
+  // inherited Create;
+
+  AguardarAviso := False;
+
+  FListaServidores := TStringList.Create;
+  // FListaHostNames := TStringList.Create;
+
+  FListaOperacoes := TStringList.Create;
+  FListaOperacoesTimeOut := TStringList.Create;
+
+  // OPERAÇÕES E TEMPOS PADRÃO
+  FListaOperacoes.Add('100100');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('100110');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('100300');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('100310');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('100700');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('200100');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('200110');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('200200');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('200400');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('200500');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('200700');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('200710');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('300100');
+  FListaOperacoesTimeOut.Add('15000');
+  FListaOperacoes.Add('400100');
+  FListaOperacoesTimeOut.Add('15000');
+
+  CriarParametros;
+
+end;
+
+destructor TParametros.Destroy;
+begin
+  GravarParametrosCRC;
+  inherited Destroy;
+end;
+
+function TParametros.DirProgDataCriar: widestring;
+begin
+  Result := UserProgranData + '\' + cDirEmpresa;
+end;
+
+function TParametros.CriaNoSistemaCRC(NoSistemas: IXMLNode): Boolean;
+var
+  NoSistema, AttribVersao, AttribId, NoUsuarios, NoSenha, NoServidor,
+    NoComputador, NoCfc, NoHostName1, NoHostName2, NoHostName3, Noultimo_Acesso
+    : IXMLNode;
+  ArqXML: TXMLDocument;
+  XMLRetornoPadrao: widestring;
+  FListaHostNames: TStringList;
+  ProdutoID: TProdutoID;
+  ProdutoNome: string;
+begin
+
+  if Trim(FNomeSistema) <> '' then
+  begin
+
+    try
+      ArqXML := TXMLDocument.Create(nil);
+      ArqXML.Active := False;
+      ArqXML.Options := [doNodeAutoIndent];
+      ArqXML.Xml.Clear;
+
+      if FileExists(DirProgDataCriar + '\' + strNomeArq) then
+        ArqXML.LoadFromFile(DirProgDataCriar + '\' + strNomeArq);
+
+      ArqXML.Active := True;
+    except
+      on Erro: Exception do
+      begin
+        ArquivoLog.GravaArquivoLog
+          ('Parmatros de configurações - Retorno Padrão - ' + Erro.Message);
+        ArqXML.Active := False;
+        ArqXML.Xml.Clear;
+        ArqXML.Xml.Text := XMLRetornoPadrao;
+        ArqXML.Active := True;
+      end;
+    end;
+
+    NoSistema := ArqXML.CreateNode('sistema', ntElement);
+    NoSistemas.ChildNodes.Add(NoSistema);
+
+    AttribId := ArqXML.CreateNode('id', ntAttribute);
+    AttribId.Text := LowerCase(FNomeSistema);
+    NoSistema.AttributeNodes.Add(AttribId);
+
+    AttribVersao := ArqXML.CreateNode('versao', ntAttribute);
+    AttribVersao.Text := GetVersaoArq;
+    NoSistema.AttributeNodes.Add(AttribVersao);
+
+    NoServidor := ArqXML.CreateNode('servidor', ntElement);
+    NoServidor.Text := '1';
+    NoSistema.ChildNodes.Add(NoServidor);
+
+    NoComputador := ArqXML.CreateNode('computador', ntElement);
+
+    if CaptaParametros(FNomeSistema, 'Computador') <> 'Erro' then
+      NoComputador.Text := CaptaParametros(FNomeSistema, 'Computador')
+    else
+      NoComputador.Text := '';
+
+    FComputador := NoComputador.Text;
+    NoSistema.ChildNodes.Add(NoComputador);
+
+    NoCfc := ArqXML.CreateNode('cfc', ntElement);
+
+    if CaptaParametros(FNomeSistema, 'Cfc') <> 'Erro' then
+      NoCfc.Text := CaptaParametros(FNomeSistema, 'Cfc')
+    else
+      NoCfc.Text := '';
+
+    FCfc := NoCfc.Text;
+    NoSistema.ChildNodes.Add(NoCfc);
+
+    NoHostName1 := ArqXML.CreateNode('hostname1', ntElement);
+    NoHostName1.Text := 'http://servidor1.eprova.com.br:443/mcp/Operations';
+    NoSistema.ChildNodes.Add(NoHostName1);
+
+    NoHostName2 := ArqXML.CreateNode('hostname2', ntElement);
+    NoHostName2.Text := 'http://servidor2.eprova.com.br:443/mcp/Operations';
+    NoSistema.ChildNodes.Add(NoHostName2);
+
+    NoHostName3 := ArqXML.CreateNode('hostname3', ntElement);
+    NoHostName3.Text := 'http://servidor3.eprova.com.br:443/mcp/Operations';
+    NoSistema.ChildNodes.Add(NoHostName3);
+
+    FListaHostNames := TStringList.Create;
+    FListaHostNames.Clear;
+    FListaHostNames.Add('http://servidor1.eprova.com.br:443/mcp/Operations');
+    FListaHostNames.Add('http://servidor2.eprova.com.br:443/mcp/Operations');
+    FListaHostNames.Add('http://servidor3.eprova.com.br:443/mcp/Operations');
+
+    FListaServidores.AddObject('1', FListaHostNames);
+    FListaServidores.AddObject('2', FListaHostNames);
+    FListaServidores.AddObject('3', FListaHostNames);
+
+    NoUsuarios := ArqXML.CreateNode('usuario', ntElement);
+
+    if CaptaParametros(FNomeSistema, 'Usuario') <> 'Erro' then
+      NoUsuarios.Text := CaptaParametros(FNomeSistema, 'Usuario')
+    else
+      NoUsuarios.Text := '';
+
+    FUsuario := NoUsuarios.Text;
+    NoSistema.ChildNodes.Add(NoUsuarios);
+
+    NoSenha := ArqXML.CreateNode('senha', ntElement);
+
+    if CaptaParametros(FNomeSistema, 'Senha') <> 'Erro' then
+      NoSenha.Text := CaptaParametros(FNomeSistema, 'Senha')
+    else
+      NoSenha.Text := '';
+
+    FSenha := NoSenha.Text;
+    NoSistema.ChildNodes.Add(NoSenha);
+
+    Noultimo_Acesso := ArqXML.CreateNode('ultimo_acesso', ntElement);
+    Noultimo_Acesso.Text := FormatDateTime('ddmmYYY', now);
+    NoSistema.ChildNodes.Add(Noultimo_Acesso);
+
+    ArqXML.SaveToFile(DirProgDataCriar + strNomeArq);
+
+    if Pos('-sp', NomeSistema) > 0 then
+      ProdutoNome := ReplaceStr(NomeSistema, 'prova-sp', 'cfcanet sp')
+    else
+      ProdutoNome := ReplaceStr(NomeSistema, 'e-prova-', 'e-prova ');
+
+    if ListaProdutoID.IndexOf(ProdutoNome) > -1 then
+    begin
+      ProdutoID := TProdutoID(ListaProdutoID.Objects
+        [ListaProdutoID.IndexOf(ProdutoNome)]);
+      ParServidor.ID_Sistema := StrToIntDef(ProdutoID.servidor, 0);
+    end;
+
+    Result := True;
+  end
+  else
+    Result := False;
+
+end;
+
+Procedure TParametros.CriarParametros;
+var
+  I1: Integer;
+  Achou: Boolean;
+  NoSistemas: IXMLNode;
+
+  NoSistemaETE : IXMLNode;
+  NomeSistemaVigente : string;
+
+  ProdutoID: TProdutoID;
+  ProdutoIDNome: string;
+  blnfileExists: Boolean;
+begin
+  blnfileExists := False;
+  Achou := False;
+
+  try
+    if not(DirectoryExists(DirProgDataCriar)) then
+      ForceDirectories(DirProgDataCriar);
+
+    ArqXML := NewXMLDocument;
+    ArqXML.FileName := '';
+    ArqXML.Xml.Text := '';
+    ArqXML.Active := False;
+
+    //if FileExists(DirProgDataCriar + '\' + strNomeArq) then
+    //  DeleteFile(PWideChar(DirProgDataCriar + '\' + strNomeArq));
+
+    if FileExists(DirProgDataCriar + '\' + strNomeArq) then
+    begin
+      if ArqXML = nil then
+        ArqXML := NewXMLDocument;
+
+      ArqXML.Active := False;
+
+      if FileExists(DirProgDataCriar + '\' + strNomeArq) then
+        ArqXML.LoadFromFile(DirProgDataCriar + '\' + strNomeArq);
+      // lendo do xml ja existente
+
+      ArqXML.Active := True;
+      ArqXML.StandAlone := 'yes';
+      ArqXML.Options := [doNodeAutoIndent];
+
+      NoSistemas := ArqXML.ChildNodes.FindNode('sistemas');
+      if NoSistemas = nil then
+      begin
+        if DeleteFile(PWideChar(DirProgDataCriar + '\' + strNomeArq)) then
+          // tentando deletar o arquivo de parametros
+          Achou := CriaNoSistemas(NoSistemas)
+        else
+        begin
+          ArquivoLog.GravaArquivoLog('Não foi possível deletar o arquivo ' +
+            DirProgDataCriar + '\' + strNomeArq);
+          EXIT;
+        end;
+      end
+      else
+      begin
+        if NoSistemas.HasChildNodes then
+        begin
+
+          for I1 := 0 to NoSistemas.ChildNodes.Count - 1 do
+          begin
+
+            ProdutoIDNome := LowerCase(NoSistemas.ChildNodes.Get(I1)
+              .Attributes['id']);
+            if copy(ProdutoIDNome, 1, 8) = 'e-prova-' then
+            begin
+              if ProdutoIDNome = 'e-prova-sp' then
+                ProdutoIDNome := ReplaceStr(ProdutoIDNome, 'prova-sp',
+                  'cfcanet sp')
+              else
+                ProdutoIDNome := ReplaceStr(ProdutoIDNome, 'e-prova-',
+                  'e-prova ');
+            end
+            else
+              ProdutoIDNome := UpperCase(ProdutoIDNome.Replace('-', ' '));
+
+            if ListaProdutoID.IndexOf(ProdutoIDNome) > -1 then
+            begin
+              ProdutoID :=
+                TProdutoID(ListaProdutoID.Objects
+                [ListaProdutoID.IndexOf(ProdutoIDNome)]);
+
+              FNomeSistema := NoSistemas.ChildNodes.Get(I1).Attributes['id'];
+              ParServidor.ID_Sistema := StrToIntDef(ProdutoID.servidor, 0);
+
+              NomeSistemaVigente := '';
+              NoSistemaETE := NoSistemas.ChildNodes.Get(I1);
+              NomeSistemaVigente := NoSistemaETE.Attributes['id'];
+
+              if NomeSistemaVigente = 'ete-sp' then
+                NoSistemas.ChildNodes.Get(I1).Attributes['versao'] := GetVersaoArq;
+
+              if not Achou then
+                begin
+                if NomeSistemaVigente = 'ete-sp' then
+                  Achou := True
+                else
+                  FNomeSistema := 'ete-sp';
+                end;
+              //BREAK;
+            end;
+
+          end;
+        end;
+        if not Achou then
+          Achou := CriaNoSistemaCRC(NoSistemas);
+      end;
+    end
+    else
+    begin
+      Achou := CriaNoSistemas(NoSistemas);
+    end;
+
+    if Achou then
+    begin
+      ArqXML.SaveToFile(DirProgDataCriar + '\' + strNomeArq);
+      ArqXML.Active := False;
+    end;
+
+    LerParametrosCRC;
+  except
+    ArquivoLog.GravaArquivoLog('Analisar a criação/alteração do arq. ' +
+      DirProgDataCriar + '\' + strNomeArq);
+  end;
+
+end;
+
+function TParametros.CriaNoSistemas(NoSistemas: IXMLNode): Boolean;
+begin
+  ArqXML.Active := False;
+  ArqXML := NewXMLDocument;
+  ArqXML.FileName := '';
+  ArqXML.Xml.Text := '';
+  ArqXML.Active := False;
+  ArqXML.Active := True;
+  ArqXML.Version := '1.0';
+  ArqXML.Encoding := 'Latin1';
+  ArqXML.StandAlone := 'yes';
+  ArqXML.Options := [doNodeAutoIndent];
+
+  NoSistemas := ArqXML.ChildNodes.FindNode('sistemas');
+  if NoSistemas = nil then
+    NoSistemas := ArqXML.AddChild('sistemas');
+
+  Result := CriaNoSistemaCRC(NoSistemas);
+end;
+
+function TParametros.LerParametrosCRC: Boolean;
+var
+  XML_Sist: IXMLDocument;
+  NoSistemas: IXMLNode;
+  NoSistema: IXMLNode;
+  NoServidores: IXMLNode;
+  NoServidor: IXMLNode;
+  NoEndereco: IXMLNode;
+  NoComputador: IXMLNode;
+  NoCfc: IXMLNode;
+  NoUsuarios: IXMLNode;
+  NoSenha: IXMLNode;
+  Noultimo_Acesso: IXMLNode;
+  FListaHostNames: TStringList;
+  I1: Integer;
+  S: Integer;
+  E: Integer;
+begin
+  Result := True;
+
+  try
+
+    XML_Sist := NewXMLDocument;
+    XML_Sist.Options := [doNodeAutoIndent];
+
+    if FileExists(DirProgDataCriar + '\' + strNomeArq) then
+      XML_Sist.LoadFromFile(DirProgDataCriar + '\' + strNomeArq);
+
+    XML_Sist.Active := True;
+
+    NoSistemas := XML_Sist.ChildNodes.FindNode('sistemas');
+
+    if NoSistemas = nil then
+      EXIT;
+
+    FListaServidores.Clear;
+
+    FListaHostNames := TStringList.Create;
+    FListaHostNames.Clear;
+
+    for I1 := NoSistemas.ChildNodes.Count - 1 downto 0 do
+    begin
+
+      NoSistema := NoSistemas.ChildNodes.Get(I1);
+
+{
+      if LowerCase(NoSistema.Attributes['id']) = 'crc-xe' then
+        if NoSistema.ChildNodes.FindNode('identificacao') <> nil then
+          FIdentificacao := LRPad(NoSistema.ChildNodes.FindNode('identificacao')
+            .Text, 6, '0', 'L')
+        else
+          FIdentificacao := '999999';
+}
+
+      if FIdentificacao = '' then
+        FIdentificacao := '0';
+
+      if (NoSistema = nil) or (LowerCase(NoSistema.Attributes['id']) <>
+        LowerCase(FNomeSistema)) then
+        Continue;
+
+      Self.FNomeSistema := NoSistema.Attributes['id'];
+      Self.FVersao := NoSistema.Attributes['versao'];
+
+      if NoSistema.ChildNodes.FindNode('proxy') <> nil then
+      begin
+
+        if NoSistema.ChildNodes.FindNode('proxy').ChildNodes.FindNode
+          ('proxyurl') <> nil then
+          Self.ProxyURL := NoSistema.ChildNodes.FindNode('proxy')
+            .ChildNodes.FindNode('proxyurl').Text;
+
+        if NoSistema.ChildNodes.FindNode('proxy').ChildNodes.FindNode
+          ('proxyusername') <> nil then
+          Self.ProxyUsername := NoSistema.ChildNodes.FindNode('proxy')
+            .ChildNodes.FindNode('proxyusername').Text;
+
+        if NoSistema.ChildNodes.FindNode('proxy').ChildNodes.FindNode
+          ('proxypassword') <> nil then
+          Self.ProxyPassword := NoSistema.ChildNodes.FindNode('proxy')
+            .ChildNodes.FindNode('proxypassword').Text;
+
+      end;
+
+      if NoSistema.ChildNodes.FindNode('computador') <> nil then
+        Self.FComputador := NoSistema.ChildNodes.FindNode('computador').Text
+      else
+      begin
+        NoComputador := XML_Sist.CreateNode('computador', ntElement);
+        NoComputador.Text := '';
+        FComputador := NoComputador.Text;
+        NoSistema.ChildNodes.Add(NoComputador);
+      end;
+
+      if NoSistema.ChildNodes.FindNode('cfc') <> nil then
+        Self.FCfc := NoSistema.ChildNodes.FindNode('cfc').Text
+      else
+      begin
+        NoCfc := XML_Sist.CreateNode('cfc', ntElement);
+        NoCfc.Text := '';
+        FCfc := NoCfc.Text;
+        NoSistema.ChildNodes.Add(NoCfc);
+      end;
+
+      if NoSistema.ChildNodes.FindNode('hostname1') <> nil then
+      begin
+        NoSistema.ChildNodes.Delete
+          (NoSistema.ChildNodes.IndexOf(NoSistema.ChildNodes.FindNode
+          ('hostname1')));
+        FListaHostNames.Add
+          ('http://servidor1.eprova.com.br:443/mcp/Operations');
+      end;
+
+      if NoSistema.ChildNodes.FindNode('hostname2') <> nil then
+      begin
+        NoSistema.ChildNodes.Delete
+          (NoSistema.ChildNodes.IndexOf(NoSistema.ChildNodes.FindNode
+          ('hostname2')));
+        FListaHostNames.Add
+          ('http://servidor2.eprova.com.br:443/mcp/Operations');
+      end;
+
+      if NoSistema.ChildNodes.FindNode('hostname3') <> nil then
+      begin
+        NoSistema.ChildNodes.Delete
+          (NoSistema.ChildNodes.IndexOf(NoSistema.ChildNodes.FindNode
+          ('hostname3')));
+        FListaHostNames.Add
+          ('http://servidor3.eprova.com.br:443/mcp/Operations');
+      end;
+
+      if NoSistema.ChildNodes.FindNode('servidores') = nil then
+      begin
+
+        FListaServidores.AddObject('1', FListaHostNames);
+        FListaServidores.AddObject('2', FListaHostNames);
+        FListaServidores.AddObject('3', FListaHostNames);
+
+        NoServidores := XML_Sist.CreateNode('servidores', ntElement);
+        NoServidores.Text := '';
+        NoSistema.ChildNodes.Add(NoServidores);
+
+        NoServidores := NoSistema.ChildNodes.FindNode('servidores');
+        for S := 0 to 2 do
+        begin
+
+          NoServidor := XML_Sist.CreateNode('servidor', ntElement);
+          NoServidor.Text := '';
+          NoServidor.Attributes['id'] := IntToStr(S);
+          NoServidores.ChildNodes.Add(NoServidor);
+
+          for E := 0 to 2 do
+          begin
+
+            NoEndereco := XML_Sist.CreateNode('servidor', ntElement);
+            NoEndereco.Text := 'http://servidor' + IntToStr(E + 1) +
+              '.eprova.com.br:443/mcp/Operations';
+            NoEndereco.Attributes['id'] := IntToStr(S);
+            NoServidor.ChildNodes.Add(NoEndereco);
+            FListaHostNames.Add(NoEndereco.Text);
+
+          end;
+
+          // FListaServidores.AddObject(NoServidor.Attributes['id'], FListaHostNames);
+
+        end;
+
+      end
+      else
+      begin
+
+        NoServidores := NoSistema.ChildNodes.FindNode('servidores');
+
+        if NoServidores.ChildNodes.Count = 0 then
+        begin
+
+          for S := 0 to 2 do
+          begin
+
+            NoServidor := XML_Sist.CreateNode('servidor', ntElement);
+            NoServidor.Text := '';
+            NoServidor.Attributes['id'] := IntToStr(S);
+            NoServidores.ChildNodes.Add(NoServidor);
+
+            for E := 0 to 2 do
+            begin
+
+              NoEndereco := XML_Sist.CreateNode('servidor', ntElement);
+              NoEndereco.Text := 'http://servidor' + IntToStr(E + 1) +
+                '.eprova.com.br:443/mcp/Operations';
+              NoEndereco.Attributes['id'] := IntToStr(S);
+              NoServidor.ChildNodes.Add(NoEndereco);
+              FListaHostNames.Add(NoEndereco.Text);
+
+            end;
+
+            FListaServidores.AddObject(NoServidor.Attributes['id'],
+              FListaHostNames);
+
+          end;
+
+        end
+        else
+        begin
+          for S := 0 to NoServidores.ChildNodes.Count - 1 do
+          begin
+
+            NoServidor := NoServidores.ChildNodes.Get(S);
+
+            for E := 0 to NoServidor.ChildNodes.Count - 1 do
+            begin
+
+              if NoServidor.ChildNodes.Get(E).Text <> '' then
+                FListaHostNames.Add(NoServidor.ChildNodes.Get(E).Text)
+              else
+              begin
+                NoServidor.ChildNodes.Get(E).Text := 'http://servidor' +
+                  IntToStr(E + 1) + '.eprova.com.br:443/mcp/Operations';
+                FListaHostNames.Add(NoServidor.ChildNodes.Get(E).Text);
+              end;
+
+            end;
+
+            FListaServidores.AddObject(NoServidor.Attributes['id'],
+              FListaHostNames);
+
+          end;
+
+        end;
+
+      end;
+
+      if (NoSistema.ChildNodes.FindNode('usuario') <> nil) and (Self.FNomeSistema = 'ete-sp') then
+        Self.Usuario := Decripta(NoSistema.ChildNodes.FindNode('usuario').Text)
+      else
+      begin
+        NoUsuarios := XML_Sist.CreateNode('usuario', ntElement);
+        NoUsuarios.Text := '';
+        Self.Usuario := Decripta(NoUsuarios.Text);
+        NoSistema.ChildNodes.Add(NoUsuarios);
+      end;
+
+      if (NoSistema.ChildNodes.FindNode('senha') <> nil) and (Self.FNomeSistema = 'ete-sp') then
+        Self.Senha := Decripta(NoSistema.ChildNodes.FindNode('senha').Text)
+      else
+      begin
+        NoSenha := XML_Sist.CreateNode('senha', ntElement);
+        NoSenha.Text := '';
+        Self.Senha := Decripta(NoSenha.Text);
+        NoSistema.ChildNodes.Add(NoSenha);
+      end;
+
+      if NoSistema.ChildNodes.FindNode('ultimo_acesso') <> nil then
+        Self.Fultimo_acesso := NoSistema.ChildNodes.FindNode
+          ('ultimo_acesso').Text
+      else
+      begin
+        Noultimo_Acesso := XML_Sist.CreateNode('ultimo_acesso', ntElement);
+        Noultimo_Acesso.Text := FormatDateTime('ddmmYYY', now);
+        NoSistema.ChildNodes.Add(Noultimo_Acesso);
+      end;
+
+    end;
+
+    XML_Sist.SaveToFile(DirProgDataCriar + '\' + strNomeArq);
+
+  except
+    ArquivoLog.GravaArquivoLog('Analisar leitura de parametros da CRC.' +
+      DirProgDataCriar + '\' + strNomeArq);
+  end;
+
+end;
+
+procedure TParametros.SetAguardarAviso(const Value: Boolean);
+begin
+  FAguardarAviso := Value;
+end;
+
+function TParametros.Encripta(Value: String): String;
+begin
+  Result := Cifra(iif(FSenha = 'Erro', '', Value), 'AXF');
+end;
+
+function TParametros.Decripta(Value: String): String;
+begin
+  Result := Decifra(iif(FUsuario = 'Erro', '', Value), 'AXF');
+end;
+
+function TParametros.GetAguardarAviso: Boolean;
+begin
+  Result := FAguardarAviso;
+end;
+
+function TParametros.GravarParametrosCRC: Boolean;
+var
+  XML_Sist: IXMLDocument;
+  NoSistemas: IXMLNode;
+  NoSistema: IXMLNode;
+  NoServidores: IXMLNode;
+  NoServidor: IXMLNode;
+  NoHostName: IXMLNode;
+  FListaHostNames: TStringList;
+  I1: Integer;
+  S: Integer;
+  E: Integer;
+begin
+
+  Result := True;
+
+  try
+
+    XML_Sist := NewXMLDocument;
+    XML_Sist.Options := [doNodeAutoIndent];
+
+    if FileExists(DirProgDataCriar + '\' + strNomeArq) then
+      XML_Sist.LoadFromFile(DirProgDataCriar + '\' + strNomeArq);
+
+    XML_Sist.Active := True;
+
+    NoSistemas := XML_Sist.ChildNodes.FindNode('sistemas');
+
+    if NoSistemas = nil then
+      EXIT;
+
+    for I1 := NoSistemas.ChildNodes.Count - 1 downto 0 do
+    begin
+
+      NoSistema := NoSistemas.ChildNodes.Get(I1);
+      if (NoSistema = nil) or (LowerCase(NoSistema.Attributes['id']) <>
+        LowerCase(FNomeSistema)) then
+        Continue;
+
+      Self.FNomeSistema := NoSistema.Attributes['id'];
+      Self.FVersao := NoSistema.Attributes['versao'];
+
+      if NoSistema.ChildNodes.FindNode('servidor') <> nil then
+        NoSistema.ChildNodes.Remove(NoSistema.ChildNodes.FindNode('servidor'));
+
+      if NoSistema.ChildNodes.FindNode('computador') <> nil then
+        NoSistema.ChildNodes.FindNode('computador').Text := Self.FComputador;
+
+      if NoSistema.ChildNodes.FindNode('cfc') <> nil then
+        NoSistema.ChildNodes.FindNode('cfc').Text := Self.FCfc;
+
+      if NoSistema.ChildNodes.FindNode('servidores') = nil then
+      begin
+        NoServidores := XML_Sist.CreateNode('servidores', ntElement);
+        NoServidores.Text := '';
+        NoSistema.ChildNodes.Add(NoServidores);
+      end;
+
+      NoServidores := NoSistema.ChildNodes.FindNode('servidores');
+      FListaHostNames := TStringList.Create;
+
+      if FListaServidores.Count <> NoServidores.ChildNodes.Count then
+      begin
+
+        while NoServidores.ChildNodes.Count > 0 do
+          NoServidores.ChildNodes.Remove
+            (NoServidores.ChildNodes.Get(NoServidores.ChildNodes.Count - 1));
+
+        for S := 0 to FListaServidores.Count - 1 do
+        begin
+
+          NoServidor := XML_Sist.CreateNode('servidor', ntElement);
+          NoServidor.Text := '';
+          NoServidor.Attributes['id'] := FListaServidores[S];
+          NoServidores.ChildNodes.Add(NoServidor);
+
+          FListaHostNames.Clear;
+          FListaHostNames.Text :=
+            (FListaServidores.Objects[S] as TStringList).Text;
+
+          for E := 0 to FListaHostNames.Count - 1 do
+          begin
+
+            NoHostName := XML_Sist.CreateNode('hostname', ntElement);
+            NoHostName.Text := FListaHostNames[E];
+            NoServidor.ChildNodes.Add(NoHostName);
+
+          end;
+
+        end;
+
+      end
+      else
+      begin
+        for S := 0 to NoServidores.ChildNodes.Count - 1 do
+        begin
+
+          NoServidor := NoServidores.ChildNodes.Get(S);
+          NoServidor.Attributes['id'] := FListaServidores[S];
+
+          if NoServidor <> nil then
+          begin
+
+            FListaHostNames.Clear;
+            FListaHostNames.Text :=
+              (FListaServidores.Objects[S] as TStringList).Text;
+
+            for E := 0 to FListaHostNames.Count - 1 do
+            begin
+              if NoSistema.ChildNodes.FindNode('hostname') <> nil then
+                NoSistema.ChildNodes.FindNode('hostname').Text :=
+                  FListaHostNames[E];
+            end;
+
+          end;
+
+        end;
+      end;
+
+      if (NoSistema.ChildNodes.FindNode('usuario') <> nil) and (Self.FNomeSistema = 'ete-sp') then
+        NoSistema.ChildNodes.FindNode('usuario').Text :=
+          Encripta(Self.FUsuario);
+
+      if (NoSistema.ChildNodes.FindNode('senha') <> nil) and (Self.FNomeSistema = 'ete-sp') then
+        NoSistema.ChildNodes.FindNode('senha').Text := Encripta(Self.FSenha);
+
+      if NoSistema.ChildNodes.FindNode('ultimo_acesso') <> nil then
+        NoSistema.ChildNodes.FindNode('ultimo_acesso').Text :=
+          Self.Fultimo_acesso;
+
+    end;
+
+    XML_Sist.SaveToFile(DirProgDataCriar + '\' + strNomeArq);
+
+  except
+    ArquivoLog.GravaArquivoLog('Analisar leitura de parametros da CRC.' +
+      DirProgDataCriar + '\' + strNomeArq);
+  end;
+
+end;
+
+end.

@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2022/08/08 21:32:55.000.679,=C:\Users\DS - André\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2022/08/08 21:35:32.000.526,C:\Users\DS - André\Documents\Embarcadero\Studio\Projects\Project1.dproj=C:\Users\DS - André\Documents\Embarcadero\Studio\Projects\ETE_XE.dproj</Transaction>
+    <Transaction>2022/08/08 21:35:43.000.683,C:\Users\DS - André\Documents\Embarcadero\Studio\Projects\ETE_XE.dproj=C:\Users\DS - André\Documents\Embarcadero\Studio\Projects\ETE_XE.dproj</Transaction>
+    <Transaction>2022/08/21 19:40:45.000.911,C:\Lib\MD5\Base64.pas=</Transaction>
+    <Transaction>2022/08/21 19:40:46.000.214,C:\Lib\MD5\Sha1.pas=</Transaction>
+    <Transaction>2022/08/21 19:40:46.000.172,C:\Lib\MD5\Md5.pas=</Transaction>
+    <Transaction>2022/08/21 19:40:46.000.017,C:\Lib\MD5\cipher.pas=</Transaction>
+    <Transaction>2022/08/21 19:40:46.000.112,C:\Lib\MD5\DCPcrypt.pas=</Transaction>
+    <Transaction>2022/08/21 19:40:46.000.042,C:\Lib\MD5\DCPconst.pas=</Transaction>
+    <Transaction>2022/08/21 19:40:46.000.137,C:\Lib\MD5\IDEA.pas=</Transaction>
+    <Transaction>2022/08/21 19:45:13.000.657,=C:\Lib\MD5\cipher.pas</Transaction>
+    <Transaction>2022/08/21 19:47:02.000.701,=C:\Lib\MD5\Md5.pas</Transaction>
+    <Transaction>2022/08/21 19:47:50.000.315,=C:\Lib\MD5\IDEA.pas</Transaction>
+    <Transaction>2022/08/21 19:47:50.000.257,=C:\Lib\MD5\DCPconst.pas</Transaction>
+    <Transaction>2022/08/21 19:47:50.000.288,=C:\Lib\MD5\DCPcrypt.pas</Transaction>
+    <Transaction>2022/08/21 19:48:42.000.781,=C:\Lib\MD5\Base64.pas</Transaction>
+    <Transaction>2022/08/21 19:49:22.000.387,=C:\Lib\MD5\Sha1.pas</Transaction>
+  </Transactions>
+</BorlandProject>

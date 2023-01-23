@@ -1,0 +1,185 @@
+unit ClsCandidatoControl;
+
+interface
+
+uses
+  System.SysUtils, System.IniFiles, System.Win.Registry, Winapi.Windows,
+  System.Classes, vcl.Dialogs, Xml.XMLIntf, Xml.XMLDoc, Datasnap.DSClientRest,
+  System.JSON, ClseProvaConst;
+
+type
+  TCandidato = class(TObject)
+  protected
+    // Candidato
+    FId_Candidato: String;
+    FNome_Candidato: string;
+    FMunicipio_Candidato: string;
+    FUF_Candidato: Char;
+    FCurso_Candidato: string;
+    FCPF_Candidato: string;
+    FRENACH_Candidato: string;
+    FExcecao: string;
+    FTipoProva: string;
+    FRegistroDePresenca: String;
+    FNascimento: string;
+    FModalidade: String;
+    FSexo: String;
+    FResgistrarPresenca: Boolean;
+    FFoto: WideString;
+    FProva: string;
+    FSimulado: string;
+    FBloqueado: string;
+    procedure SetId_Candidato(ID: String);
+    function GetId_Candidato(): String;
+    procedure SetNome_Candidato(Nome: String);
+    function GetNome_Candidato(): String;
+    procedure SetCidade_Candidato(Cidade: String);
+    function GetCidade_Candidato(): String;
+    procedure SetUF_Candidato(UF: Char);
+    function GetUF_Candidato(): Char;
+    procedure SetCurso_Candidato(Curso: String);
+    function GetCurso_Candidato(): String;
+    procedure SetCPF_Candidato(CPF: String);
+    function GetCPF_Candidato(): String;
+    procedure SetRENACH_Candidato(RENACH: String);
+    function GetRENACH_Candidato(): String;
+    procedure SetDigital_Candidato(Digital: String);
+    function GetDigital_Candidato(): String;
+    procedure SetTipoProva(Tipo: String);
+    function GetTipoProva(): String;
+    procedure SetRegistroDePresenca(Registro: String);
+    function GetRegistroDePresenca(): String;
+  public
+    property IdCandidato: String read GetId_Candidato write SetId_Candidato;
+    property NomeCandidato: String read GetNome_Candidato
+      write SetNome_Candidato;
+    property Municipio_Candidato: String read GetCidade_Candidato
+      write SetCidade_Candidato;
+    property UFCandidato: Char read GetUF_Candidato write SetUF_Candidato;
+    property CursoCandidato: String read GetCurso_Candidato
+      write SetCurso_Candidato;
+    property CPFCandidato: String read GetCPF_Candidato write SetCPF_Candidato;
+    property RENACHCandidato: String read GetRENACH_Candidato
+      write SetRENACH_Candidato;
+    property Excecao: String read GetDigital_Candidato
+      write SetDigital_Candidato;
+    property TipoProva: String read GetTipoProva write SetTipoProva;
+    property RegistroPresenca: String read GetRegistroDePresenca
+      write SetRegistroDePresenca;
+    property Nascimento: String read FNascimento write FNascimento;
+    property Modalidade: String read FModalidade write FModalidade;
+    property Sexo: String read FSexo write FSexo;
+    property ResgistrarPresenca: Boolean read FResgistrarPresenca
+      write FResgistrarPresenca;
+    property Foto: WideString read FFoto write FFoto;
+    property Bloqueado: String read FBloqueado write FBloqueado;
+    property Prova: String read FProva write FProva;
+    property Simulado: String read FSimulado write FSimulado;
+  end;
+
+var
+  ParCandidato: TCandidato;
+
+implementation
+
+function TCandidato.GetId_Candidato(): String;
+begin
+  Result := FId_Candidato;
+end;
+
+procedure TCandidato.SetId_Candidato(ID: String);
+begin
+  FId_Candidato := ID;
+end;
+
+function TCandidato.GetNome_Candidato(): String;
+begin
+  Result := FNome_Candidato;
+end;
+
+procedure TCandidato.SetNome_Candidato(Nome: String);
+begin
+  FNome_Candidato := Nome;
+end;
+
+function TCandidato.GetCidade_Candidato(): String;
+begin
+  Result := FMunicipio_Candidato;
+end;
+
+procedure TCandidato.SetCidade_Candidato(Cidade: String);
+begin
+  FMunicipio_Candidato := Cidade;
+end;
+
+function TCandidato.GetUF_Candidato(): Char;
+begin
+  Result := FUF_Candidato;
+end;
+
+procedure TCandidato.SetUF_Candidato(UF: Char);
+begin
+  FUF_Candidato := UF;
+end;
+
+function TCandidato.GetCurso_Candidato(): String;
+begin
+  Result := FCurso_Candidato;
+end;
+
+procedure TCandidato.SetCurso_Candidato(Curso: String);
+begin
+  FCurso_Candidato := Curso;
+end;
+
+function TCandidato.GetCPF_Candidato(): String;
+begin
+  Result := FCPF_Candidato;
+end;
+
+procedure TCandidato.SetCPF_Candidato(CPF: String);
+begin
+  FCPF_Candidato := CPF;
+end;
+
+function TCandidato.GetRENACH_Candidato(): String;
+begin
+  Result := FRENACH_Candidato;
+end;
+
+procedure TCandidato.SetRENACH_Candidato(RENACH: String);
+begin
+  FRENACH_Candidato := RENACH;
+end;
+
+function TCandidato.GetDigital_Candidato(): String;
+begin
+  Result := FExcecao;
+end;
+
+procedure TCandidato.SetDigital_Candidato(Digital: String);
+begin
+  FExcecao := Digital;
+end;
+
+function TCandidato.GetTipoProva(): String;
+begin
+  Result := FTipoProva;
+end;
+
+procedure TCandidato.SetTipoProva(Tipo: String);
+begin
+  FTipoProva := Tipo;
+end;
+
+function TCandidato.GetRegistroDePresenca(): String;
+begin
+  Result := FRegistroDePresenca;
+end;
+
+procedure TCandidato.SetRegistroDePresenca(Registro: String);
+begin
+  FRegistroDePresenca := Registro;
+end;
+
+end.

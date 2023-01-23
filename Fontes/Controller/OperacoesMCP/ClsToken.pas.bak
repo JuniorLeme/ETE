@@ -1,0 +1,158 @@
+unit ClsToken;
+
+interface
+
+uses
+  System.Classes, System.SysUtils, Xml.xmldom, Xml.XMLIntf, Xml.Win.msxmldom,
+  Vcl.Forms, Vcl.Controls, Xml.XMLDoc, IdHashMessageDigest, Soap.Rio, Soap.SOAPHTTPClient, IdHTTP,
+  FrmAvisoConexao, IdTCPConnection, IdTCPClient, IdICMPClient, Winapi.Windows, Winapi.WinInet,
+  Vcl.Dialogs, IdBaseComponent, IdCoder, IdCoder3to4, IdCoderMIME, ClsConexaoFerramentas,
+  ClsCFCControl, ClsServidorControl, ClsWebService, ClsFuncoes, ClsParametros;
+
+type
+  TToken = class
+  private
+
+  protected
+    FCodigo: string;
+    FToken: string;
+    FMensagem: string;
+
+    procedure HttpRioTokenBeforeExecute(const MethodName: string; Request: TStream);
+  public
+    function GetTokenMCP(Fusuario, Fsenha: String; Aviso: String = ''): IXMLDocument;
+  end;
+
+implementation
+
+{ TToken }
+procedure TToken.HttpRioTokenBeforeExecute(const MethodName: string; Request: TStream);
+var
+  timeout: integer;
+begin
+
+  timeout := 100000;
+
+  InternetSetOption(nil, INTERNET_OPTION_CONNECT_TIMEOUT, Pointer(@timeout), sizeof(timeout));
+  InternetSetOption(nil, INTERNET_OPTION_SEND_TIMEOUT, Pointer(@timeout), sizeof(timeout));
+  InternetSetOption(nil, INTERNET_OPTION_RECEIVE_TIMEOUT, Pointer(@timeout), sizeof(timeout));
+
+end;
+
+function TToken.GetTokenMCP(Fusuario, Fsenha: String; Aviso: String = ''): IXMLDocument;
+var
+  HttpToken: THTTPRIO;
+  idmd5: TIdHashMessageDigest5;
+  net: TConexao;
+  ListaLinks: TStringList;
+  IndiceDoServidor: integer;
+  IndiceDoLink: integer;
+  strUsuario: String;
+
+  TentarNovaConexao: Boolean;
+  ContadorConexao: integer;
+
+  Frm_Aviso: TFrm_AvisoConexao;
+begin
+
+  Result := TXMLDocument.Create(nil);
+  TentarNovaConexao := False;
+
+  repeat
+
+    if net.PingDNSGrupoCRIAR('internic.net') then
+    begin
+
+      idmd5 := TIdHashMessageDigest5.Create;
+      HttpToken := THTTPRIO.Create(nil);
+      ListaLinks := TStringList.Create;
+
+      // Almenta o tempo de espera
+      HttpToken.OnBeforeExecute := HttpRioTokenBeforeExecute;
+
+      IndiceDoServidor := Random(Parametros.ListaServidores.Count - 1);
+      ListaLinks.Text := (Parametros.ListaServidores.Objects[IndiceDoServidor] as TStringList).Text;
+      IndiceDoLink := Random(ListaLinks.Count - 1);
+      HttpToken.URL := ListaLinks[IndiceDoLink];
+
+      HttpToken.Service := 'Operations';
+      HttpToken.Port := 'MainPort';
+
+      // Foi Feito desta forma porque a procedure do Cleiber não lê a tabela de operadores
+      if ParServidor.ID_Sistema = 872461 then
+        strUsuario := 'admin@' + Parametros.Usuario
+      else
+        strUsuario := Parametros.Usuario;
+
+      try
+
+        ArquivoLog.GravaArquivoLog('Token: ' + IntToStr(ParServidor.ID_Sistema) + Parametros.Versao + strUsuario + idmd5.HashStringAsHex(Parametros.Senha));
+
+        Result.Xml.Text := (HttpToken as ClsWebService.Main).Token(IntToStr(ParServidor.ID_Sistema), Parametros.Versao, strUsuario,
+          idmd5.HashStringAsHex(Parametros.Senha));
+        TentarNovaConexao := True;
+      except
+        on E: Exception do
+        begin
+          TentarNovaConexao := False;
+          ArquivoLog.GravaArquivoLog('Token: ' + E.Message);
+          ArquivoLog.GravaArquivoLog('Token: ' + Result.Xml.Text);
+        end;
+      end;
+
+    end;
+
+    if TentarNovaConexao = False then
+    begin
+
+      // "A Prova está pausada, pois não há conexão com a Internet. Verifique sua conexão. Monitoramento em alerta.
+      // Incluir Botões: TENTAR NOVAMENTE e FECHAR.
+
+      if ContadorConexao >= 10 then
+      begin
+
+        if Trim(Aviso) <> '' then
+        begin
+
+          ContadorConexao := 0;
+
+          Application.NormalizeTopMosts;
+          Parametros.AguardarAviso := True;
+          Frm_Aviso := TFrm_AvisoConexao.Create(nil);
+          Frm_Aviso.Label1.Caption := Aviso;
+
+          if Frm_Aviso.ShowModal = mrYes then
+            TentarNovaConexao := False
+          else
+          begin
+            TentarNovaConexao := True;
+            Application.Terminate;
+          end;
+
+          Parametros.AguardarAviso := False;
+          Application.RestoreTopMosts;
+
+        end
+        else
+          TentarNovaConexao := True
+      end
+      else
+      begin
+        Inc(ContadorConexao);
+        TentarNovaConexao := False;
+        Sleep(100);
+      end;
+
+    end;
+
+  until TentarNovaConexao;
+
+  if Result.Xml.Text = '' then
+  begin
+    Result.Xml.Text := '<?xml version="1.0" encoding="Latin1"?><retorno servidor="' + IntToStr(ParServidor.ID_Sistema) + '" usuario="0" operacao="000000' +
+      '" codigo="D998"><mensagem tipo="E" id="998"><texto>Token vazio</texto></mensagem></retorno>';
+  end;
+
+end;
+
+end.

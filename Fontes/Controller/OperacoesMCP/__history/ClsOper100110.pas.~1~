@@ -1,0 +1,128 @@
+unit ClsOper100110;
+
+interface
+
+uses
+  ClsOperacoes, Xml.xmldom, Xml.XMLIntf, Xml.Win.msxmldom, Xml.XMLDoc,
+  System.SysUtils, System.Classes, ClsParametros, Datasnap.DSClientRest,
+  ClsServidorControl, ClsListaBloqueio, ClsEnvioMCP, ClsRetornoMCP;
+
+type
+
+  T100110Retorno = class(TRetornoMCP)
+    Procedure MontaRetorno(XMLDoc: IXMLDocument);
+  end;
+
+  T100110Envio = class(TEnvioMCP)
+    Function MontaXMLEnvio(FTipo: string): IXMLDocument;
+  end;
+
+implementation
+
+uses ClsFuncoes;
+
+Procedure T100110Retorno.MontaRetorno(XMLDoc: IXMLDocument);
+var
+  NoRetorno: IXMLNode;
+  NoSincronizacao: IXMLNode;
+  NoServidores: IXMLNode;
+  NoTempos: IXMLNode;
+
+  E: Integer; // Endereço
+  S: Integer; // Servidores
+  T: Integer; // Tempos
+  ListaHostNames: TStringList;
+begin
+
+  try
+
+    Self.Retorno(XMLDoc);
+
+    if Self.IsValid then
+    begin
+
+      NoRetorno := XMLDoc.ChildNodes.FindNode('retorno');
+      if NoRetorno.HasAttribute('codigo') then
+        codigo := NoRetorno.Attributes['codigo'];
+
+      NoSincronizacao := NoRetorno.ChildNodes.FindNode('sincronizacao');
+      if NoSincronizacao <> nil then
+      begin
+
+        ListaHostNames := TStringList.Create;
+
+        Parametros.ListaServidores.Clear;
+        NoServidores := NoSincronizacao.ChildNodes.FindNode('servidores');
+        if NoServidores <> nil then
+        begin
+
+          for S := 0 to NoServidores.ChildNodes.Count - 1 do
+          begin
+
+            ListaHostNames.Clear;
+            for E := 0 to NoServidores.ChildNodes.Get(S).ChildNodes.Count - 1 do
+            begin
+
+              if NoServidores.ChildNodes.Get(S).ChildNodes.Get(E) <> nil then
+                ListaHostNames.Add(NoServidores.ChildNodes.Get(S).ChildNodes.Get(E).Text);
+
+            end;
+
+            Parametros.ListaServidores.AddObject(NoServidores.ChildNodes.Get(S).Attributes['id'], ListaHostNames);
+
+          end;
+
+          NoTempos := NoSincronizacao.ChildNodes.FindNode('tempos');
+          if NoTempos <> nil then
+          begin
+
+            for T := 0 to Parametros.ListaOperacoesTimeOut.Count - 1 do
+              Parametros.ListaOperacoesTimeOut[T] := NoTempos.Attributes['padrao'];
+
+            for T := 0 to NoTempos.ChildNodes.Count - 1 do
+            begin
+
+              if Parametros.ListaOperacoes.IndexOf(NoTempos.ChildNodes.Get(T).Attributes['operacao']) > -1 then
+              begin
+                Parametros.ListaOperacoesTimeOut[Parametros.ListaOperacoes.IndexOf(NoTempos.ChildNodes.Get(T).Attributes['operacao'])] := NoTempos.ChildNodes.Get(T).Text;
+              end;
+
+            end;
+          end;
+        end;
+      end;
+    end;
+
+    Parametros.GravarParametrosCRC;
+
+  except
+    on E: Exception do
+    begin
+      ArquivoLog.GravaArquivoLog('Operação 100100 - Retorno Padrão - ' + E.Message);
+      XMLDoc.Active := False;
+    end;
+  end;
+
+end;
+
+function T100110Envio.MontaXMLEnvio(FTipo: string): IXMLDocument;
+var
+  EnvioMCP: TEnvioMCP;
+  XMLElementoEnvio: IXMLNode;
+  XMLSincronizacao: IXMLNode;
+begin
+
+  Result := TXMLDocument.Create(nil);
+  Result.Active := False;
+  Result.Active := True;
+
+  EnvioMCP := TEnvioMCP.GetInstance;
+  XMLElementoEnvio := EnvioMCP.GetEnvioMCP('100110', Result);
+
+  XMLSincronizacao := XMLElementoEnvio.AddChild('sincronizacao');
+  XMLSincronizacao.Attributes['tipo'] := Trim(FTipo);
+  XMLSincronizacao.Text := ' ';
+
+end;
+
+end.

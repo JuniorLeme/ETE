@@ -1,0 +1,248 @@
+// ************************************************************************ //
+// The types declared in this file were generated from data read from the
+// WSDL File described below:
+// WSDL     : http://servidor1.eprova.com.br:443/mcp-5.0.0/Operations?WSDL
+// >Import : http://servidor1.eprova.com.br:443/mcp-5.0.0/Operations?WSDL>0
+// >Import : http://servidor1.eprova.com.br:443/mcp-5.0.0/Operations?xsd=1
+// Encoding : UTF-8
+// Version  : 1.0
+// (28/03/2018 16:52:38 - - $Rev: 90173 $)
+// ************************************************************************ //
+
+unit ClsWebService;
+
+interface
+
+uses Soap.InvokeRegistry, Soap.SOAPHTTPClient, System.Types, Soap.XSBuiltIns;
+
+const
+  IS_OPTN = $0001;
+  IS_UNQL = $0008;
+
+type
+
+  // ************************************************************************ //
+  // The following types, referred to in the WSDL document are not being represented
+  // in this file. They are either aliases[@] of other types represented or were referred
+  // to but never[!] declared in the document. The types from the latter category
+  // typically map to predefined/known XML or Embarcadero types; however, they could also
+  // indicate incorrect WSDL documents that failed to declare or import a schema type.
+  // ************************************************************************ //
+  // !:string          - "http://www.w3.org/2001/XMLSchema"[Gbl]
+
+  BadPaddingException2 = class; { "http://mcp.grupocriar/"[GblCplx] }
+  BadPaddingException = class; { "http://mcp.grupocriar/"[Flt][GblElm] }
+  IllegalBlockSizeException2 = class; { "http://mcp.grupocriar/"[GblCplx] }
+  IllegalBlockSizeException = class; { "http://mcp.grupocriar/"[Flt][GblElm] }
+
+  // ************************************************************************ //
+  // XML       : BadPaddingException, global, <complexType>
+  // Namespace : http://mcp.grupocriar/
+  // ************************************************************************ //
+  BadPaddingException2 = class(TRemotable)
+  private
+    Fmessage_: string;
+    Fmessage__Specified: boolean;
+    procedure Setmessage_(Index: Integer; const Astring: string);
+    function message__Specified(Index: Integer): boolean;
+  published
+    property message_: string Index(IS_OPTN or IS_UNQL)read Fmessage_ write Setmessage_ stored message__Specified;
+  end;
+
+  // ************************************************************************ //
+  // XML       : BadPaddingException, global, <element>
+  // Namespace : http://mcp.grupocriar/
+  // Info      : Fault
+  // Base Types: BadPaddingException
+  // ************************************************************************ //
+  BadPaddingException = class(ERemotableException)
+  private
+    Fmessage_: string;
+    Fmessage__Specified: boolean;
+    procedure Setmessage_(Index: Integer; const Astring: string);
+    function message__Specified(Index: Integer): boolean;
+  published
+    property message_: string Index(IS_OPTN or IS_UNQL)read Fmessage_ write Setmessage_ stored message__Specified;
+  end;
+
+  // ************************************************************************ //
+  // XML       : IllegalBlockSizeException, global, <complexType>
+  // Namespace : http://mcp.grupocriar/
+  // ************************************************************************ //
+  IllegalBlockSizeException2 = class(TRemotable)
+  private
+    Fmessage_: string;
+    Fmessage__Specified: boolean;
+    procedure Setmessage_(Index: Integer; const Astring: string);
+    function message__Specified(Index: Integer): boolean;
+  published
+    property message_: string Index(IS_OPTN or IS_UNQL)read Fmessage_ write Setmessage_ stored message__Specified;
+  end;
+
+  // ************************************************************************ //
+  // XML       : IllegalBlockSizeException, global, <element>
+  // Namespace : http://mcp.grupocriar/
+  // Info      : Fault
+  // Base Types: IllegalBlockSizeException
+  // ************************************************************************ //
+  IllegalBlockSizeException = class(ERemotableException)
+  private
+    Fmessage_: string;
+    Fmessage__Specified: boolean;
+    procedure Setmessage_(Index: Integer; const Astring: string);
+    function message__Specified(Index: Integer): boolean;
+  published
+    property message_: string Index(IS_OPTN or IS_UNQL)read Fmessage_ write Setmessage_ stored message__Specified;
+  end;
+
+  // ************************************************************************ //
+  // Namespace : http://mcp.grupocriar/
+  // transport : http://schemas.xmlsoap.org/soap/http
+  // style     : document
+  // use       : literal
+  // binding   : MainPortBinding
+  // service   : Operations
+  // port      : MainPort
+  // URL       : http://servidor1.eprova.com.br:443/mcp-5.0.0/Operations
+  // ************************************************************************ //
+  Main = interface(IInvokable)
+    ['{3C542A48-CAF6-84C4-BF94-06536E4641CE}']
+    function cripto_execute(const program_server: string; const token: string; const xml: string): string; stdcall;
+    function secure_execute(const program_server: string; const token: string; const xml: string): string; stdcall;
+    function token(const program_server: string; const program_version: string; const user: string; const password: string): string; stdcall;
+    function validate(const program_server: string; const token: string): string; stdcall;
+    function execute(const idserver: string; const xml: string): string; stdcall;
+  end;
+
+function GetMain(UseWSDL: boolean = System.False; Addr: string = ''; HTTPRIO: THTTPRIO = nil): Main;
+
+implementation
+
+uses System.SysUtils;
+
+function GetMain(UseWSDL: boolean; Addr: string; HTTPRIO: THTTPRIO): Main;
+const
+  defWSDL = 'http://servidor1.eprova.com.br:443/mcp-5.0.0/Operations?WSDL';
+  defURL = 'http://servidor1.eprova.com.br:443/mcp-5.0.0/Operations';
+  defSvc = 'Operations';
+  defPrt = 'MainPort';
+var
+  RIO: THTTPRIO;
+begin
+  Result := nil;
+  if (Addr = '') then
+  begin
+    if UseWSDL then
+      Addr := defWSDL
+    else
+      Addr := defURL;
+  end;
+  if HTTPRIO = nil then
+    RIO := THTTPRIO.Create(nil)
+  else
+    RIO := HTTPRIO;
+  try
+    Result := (RIO as Main);
+    if UseWSDL then
+    begin
+      RIO.WSDLLocation := Addr;
+      RIO.Service := defSvc;
+      RIO.Port := defPrt;
+    end
+    else
+      RIO.URL := Addr;
+  finally
+    if (Result = nil) and (HTTPRIO = nil) then
+      RIO.Free;
+  end;
+end;
+
+procedure BadPaddingException2.Setmessage_(Index: Integer; const Astring: string);
+begin
+  Fmessage_ := Astring;
+  Fmessage__Specified := True;
+end;
+
+function BadPaddingException2.message__Specified(Index: Integer): boolean;
+begin
+  Result := Fmessage__Specified;
+end;
+
+procedure BadPaddingException.Setmessage_(Index: Integer; const Astring: string);
+begin
+  Fmessage_ := Astring;
+  Fmessage__Specified := True;
+end;
+
+function BadPaddingException.message__Specified(Index: Integer): boolean;
+begin
+  Result := Fmessage__Specified;
+end;
+
+procedure IllegalBlockSizeException2.Setmessage_(Index: Integer; const Astring: string);
+begin
+  Fmessage_ := Astring;
+  Fmessage__Specified := True;
+end;
+
+function IllegalBlockSizeException2.message__Specified(Index: Integer): boolean;
+begin
+  Result := Fmessage__Specified;
+end;
+
+procedure IllegalBlockSizeException.Setmessage_(Index: Integer; const Astring: string);
+begin
+  Fmessage_ := Astring;
+  Fmessage__Specified := True;
+end;
+
+function IllegalBlockSizeException.message__Specified(Index: Integer): boolean;
+begin
+  Result := Fmessage__Specified;
+end;
+
+initialization
+
+{ Main }
+InvRegistry.RegisterInterface(TypeInfo(Main), 'http://mcp.grupocriar/', 'UTF-8');
+InvRegistry.RegisterDefaultSOAPAction(TypeInfo(Main), '');
+InvRegistry.RegisterInvokeOptions(TypeInfo(Main), ioDocument);
+{ Main.cripto_execute }
+InvRegistry.RegisterMethodInfo(TypeInfo(Main), 'cripto_execute', '', '[ReturnName="return"]', IS_OPTN or IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'cripto_execute', 'program_server', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'cripto_execute', 'token', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'cripto_execute', 'xml', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'cripto_execute', 'return', '', '', IS_UNQL);
+{ Main.secure_execute }
+InvRegistry.RegisterMethodInfo(TypeInfo(Main), 'secure_execute', '', '[ReturnName="return"]', IS_OPTN or IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'secure_execute', 'program_server', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'secure_execute', 'token', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'secure_execute', 'xml', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'secure_execute', 'return', '', '', IS_UNQL);
+{ Main.token }
+InvRegistry.RegisterMethodInfo(TypeInfo(Main), 'token', '', '[ReturnName="return"]', IS_OPTN or IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'token', 'program_server', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'token', 'program_version', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'token', 'user', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'token', 'password', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'token', 'return', '', '', IS_UNQL);
+{ Main.validate }
+InvRegistry.RegisterMethodInfo(TypeInfo(Main), 'validate', '', '[ReturnName="return"]', IS_OPTN or IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'validate', 'program_server', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'validate', 'token', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'validate', 'return', '', '', IS_UNQL);
+{ Main.execute }
+InvRegistry.RegisterMethodInfo(TypeInfo(Main), 'execute', '', '[ReturnName="return"]', IS_OPTN or IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'execute', 'idserver', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'execute', 'xml', '', '', IS_UNQL);
+InvRegistry.RegisterParamInfo(TypeInfo(Main), 'execute', 'return', '', '', IS_UNQL);
+RemClassRegistry.RegisterXSClass(BadPaddingException2, 'http://mcp.grupocriar/', 'BadPaddingException2', 'BadPaddingException');
+RemClassRegistry.RegisterExternalPropName(TypeInfo(BadPaddingException2), 'message_', '[ExtName="message"]');
+RemClassRegistry.RegisterXSClass(BadPaddingException, 'http://mcp.grupocriar/', 'BadPaddingException');
+RemClassRegistry.RegisterExternalPropName(TypeInfo(BadPaddingException), 'message_', '[ExtName="message"]');
+RemClassRegistry.RegisterXSClass(IllegalBlockSizeException2, 'http://mcp.grupocriar/', 'IllegalBlockSizeException2', 'IllegalBlockSizeException');
+RemClassRegistry.RegisterExternalPropName(TypeInfo(IllegalBlockSizeException2), 'message_', '[ExtName="message"]');
+RemClassRegistry.RegisterXSClass(IllegalBlockSizeException, 'http://mcp.grupocriar/', 'IllegalBlockSizeException');
+RemClassRegistry.RegisterExternalPropName(TypeInfo(IllegalBlockSizeException), 'message_', '[ExtName="message"]');
+
+end.

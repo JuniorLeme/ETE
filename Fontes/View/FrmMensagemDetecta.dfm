@@ -1,0 +1,55 @@
+object Frm_MensagemDetecta: TFrm_MensagemDetecta
+  Left = 0
+  Top = 0
+  BorderStyle = bsDialog
+  Caption = 'eCFCAnet'
+  ClientHeight = 453
+  ClientWidth = 669
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
+  Font.Style = []
+  FormStyle = fsStayOnTop
+  KeyPreview = True
+  OldCreateOrder = False
+  Position = poScreenCenter
+  OnClose = FormClose
+  OnKeyDown = FormKeyDown
+  PixelsPerInch = 96
+  TextHeight = 13
+  object Button1: TButton
+    Left = 557
+    Top = 420
+    Width = 104
+    Height = 25
+    Caption = 'Sair'
+    TabOrder = 0
+    OnClick = Button1Click
+  end
+  object BtnImprimir: TButton
+    Left = 8
+    Top = 420
+    Width = 104
+    Height = 25
+    Caption = '&Imprimir'
+    TabOrder = 1
+    OnClick = BtnImprimirClick
+  end
+  object MmMensagemDetecta: TMemo
+    Left = 8
+    Top = 8
+    Width = 653
+    Height = 406
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -15
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
+    ReadOnly = True
+    ScrollBars = ssVertical
+    TabOrder = 2
+  end
+end

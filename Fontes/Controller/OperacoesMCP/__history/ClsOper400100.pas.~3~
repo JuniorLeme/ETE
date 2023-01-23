@@ -1,0 +1,81 @@
+unit ClsOper400100;
+
+interface
+
+uses
+  ClsCFCControl, ClsOperacoes, Xml.xmldom, Xml.XMLIntf, Xml.Win.msxmldom, Xml.XMLDoc,
+  System.SysUtils, ClsServidorControl, ClsParametros, ClsEnvioMCP, ClsRetornoMCP,
+  System.Classes, ClsMonitoramentoRTSPControl;
+
+type
+
+  T400100Envio = class(TEnvioMCP)
+    Function MontaXMLEnvio(id_prova, Tipo, Arquivo, Server, Stream: String): IXMLDocument;
+  end;
+
+  T400100Retorno = class(TRetornoMCP)
+    Procedure MontaRetorno(XMLDoc: IXMLDocument);
+  end;
+
+implementation
+
+uses ClsFuncoes;
+
+Procedure T400100Retorno.MontaRetorno(XMLDoc: IXMLDocument);
+begin
+
+  try
+    Self.Retorno(XMLDoc);
+  except
+    on E: Exception do
+      ArquivoLog.GravaArquivoLog('Operação 400100 - Retorno Padrão - ' + E.Message);
+  end;
+
+end;
+
+function T400100Envio.MontaXMLEnvio(id_prova, Tipo, Arquivo, Server, Stream: String): IXMLDocument;
+var
+  EnvioMCP: TEnvioMCP;
+  XMLElementoEnvio: IXMLNode;
+  XMLExame: IXMLNode;
+  XMLmonitoramento: IXMLNode;
+  XMLarquivo: IXMLNode;
+  XMLserver: IXMLNode;
+  XMLstream: IXMLNode;
+  XMLComputador: IXMLNode;
+begin
+
+  Result := TXMLDocument.Create(nil);
+  Result.Active := False;
+  Result.Active := True;
+
+  EnvioMCP := TEnvioMCP.GetInstance;
+  XMLElementoEnvio := EnvioMCP.GetEnvioMCP('400100', Result);
+
+  XMLExame := XMLElementoEnvio.AddChild('exame');
+  XMLExame.Attributes['id'] := id_prova;
+  XMLExame.Attributes['tipo'] := Tipo;
+  XMLExame.Attributes['computador'] := Parametros.Computador;
+
+  XMLComputador := XMLExame.AddChild('computador');
+  XMLComputador.Text := Parametros.Computador;
+
+  XMLmonitoramento := XMLExame.AddChild('monitoramento');
+
+  if (ParMonitoramentoFluxoRTSP.Status = 'F') then
+    XMLmonitoramento.Attributes['situacao'] := 0
+  else
+    XMLmonitoramento.Attributes['situacao'] := 1;
+
+  XMLarquivo := XMLmonitoramento.AddChild('arquivo');
+  XMLarquivo.Text := Arquivo;
+
+  XMLserver := XMLmonitoramento.AddChild('server');
+  XMLserver.Text := Server;
+
+  XMLstream := XMLmonitoramento.AddChild('stream');
+  XMLstream.Text := Stream;
+
+end;
+
+end.

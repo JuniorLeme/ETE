@@ -1,0 +1,108 @@
+unit ClsCronometros;
+
+interface
+
+uses
+  Winapi.Windows, Vcl.StdCtrls, System.Classes, System.SysUtils,
+  System.Win.ComObj,
+  System.Win.ScktComp, System.IOUtils, ClsFuncoes, ClsQuestionario,
+  ClsParametros;
+
+type
+  TThreadThreadCronometro = class(TThread)
+  protected
+    FLastException: Exception;
+    procedure Execute; override;
+    procedure HandleThreadException;
+    procedure ThreadDone;
+  private
+    function GetPause: Boolean;
+  public
+
+    // Parametros.AguardarAviso <> Pause
+    PauseT: Boolean;
+    Property Pause: Boolean read GetPause;
+    constructor Create;
+    destructor Destroy; override;
+
+  end;
+
+implementation
+
+destructor TThreadThreadCronometro.Destroy;
+begin
+  inherited Destroy;
+end;
+
+constructor TThreadThreadCronometro.Create;
+begin
+  FreeOnTerminate := False;
+  PauseT := False;
+  ParQuestionario.TempoTotal := 40;  // Adriano para Teste
+  ParQuestionario.TempoDecorrido := 36;
+ // ParQuestionario.Tempo := NparaH(ParQuestionario.TempoTotal - HparaN(ParQuestionario.TempoDecorrido));
+
+  inherited Create(True);
+end;
+
+procedure TThreadThreadCronometro.Execute;
+begin
+
+  try
+
+    try
+      CoInitializeEx(nil, 2);
+      Self.Priority := tpNormal;
+
+      repeat
+
+        if PauseT = False then
+        begin
+
+          if ParQuestionario.tempo > 0 then
+            ParQuestionario.tempo :=
+              StrToFloat(FormatFloat('00.00',
+              NparaH(HparaN(ParQuestionario.tempo) - 0.01)))
+
+        end;
+
+        Sleep(1000);
+
+      until (Self.Terminated);
+
+    except
+      on E: Exception do
+      begin
+        ArquivoLog.GravaArquivoLog('Thread Cronometro - Execute: ' + E.Message);
+        Self.Terminate;
+        if not(ExceptObject is EAbort) then
+        begin
+          FLastException := E;
+          Synchronize(HandleThreadException);
+        end;
+      end;
+    end;
+  finally
+    // Tell the main form that we are done
+    Synchronize(ThreadDone);
+  end;
+end;
+
+function TThreadThreadCronometro.GetPause: Boolean;
+begin
+
+  Result := Parametros.AguardarAviso;
+
+end;
+
+procedure TThreadThreadCronometro.HandleThreadException;
+begin
+  ArquivoLog.GravaArquivoLog('Thread Cronometro');
+end;
+
+procedure TThreadThreadCronometro.ThreadDone;
+begin
+  Self.Terminate;
+end;
+
+end.

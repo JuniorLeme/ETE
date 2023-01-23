@@ -1,0 +1,68 @@
+unit ClsRetorno.SEITran;
+
+interface
+
+uses
+  Cls.Json, System.Generics.Collections, REST.Json.Types;
+
+{$M+}
+
+type
+  TRetornoDTO = class
+  private
+    Fcodigo: string;
+    Fdescricao: string;
+  published
+    property codigo: string read Fcodigo write Fcodigo;
+    property descricao: string read Fdescricao write Fdescricao;
+  end;
+
+  TRetronoSEITranInicio = class(TJsonDTO)
+  private
+    FRetorno: TRetornoDTO;
+  published
+    property Retorno: TRetornoDTO read FRetorno write FRetorno;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+  end;
+
+  TRetronoSEITranFinal = class(TJsonDTO)
+  private
+    FRetorno: TRetornoDTO;
+  published
+    property Retorno: TRetornoDTO read FRetorno write FRetorno;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+  end;
+
+implementation
+
+{ TRootDTO }
+
+constructor TRetronoSEITranInicio.Create;
+begin
+  inherited;
+  FRetorno := TRetornoDTO.Create;
+end;
+
+destructor TRetronoSEITranInicio.Destroy;
+begin
+  FRetorno.Free;
+  inherited;
+end;
+
+constructor TRetronoSEITranFinel.Create;
+begin
+  inherited;
+  FRetorno := TRetornoDTO.Create;
+end;
+
+destructor TRetronoSEITranFinal.Destroy;
+begin
+  FRetorno.Free;
+  inherited;
+end;
+
+end.

@@ -1,0 +1,36 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{E826A647-6BAD-4F94-8ECB-61088A6B187D}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="eProva.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="eProva">
+        <MSBuild Projects="eProva.dproj"/>
+    </Target>
+    <Target Name="eProva:Clean">
+        <MSBuild Projects="eProva.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="eProva:Make">
+        <MSBuild Projects="eProva.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="eProva"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="eProva:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="eProva:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

@@ -1,0 +1,1 @@
+ffmpeg -f dshow -i video="HD Web Camera" -vcodec libx264 -timeout 12000000 -tune zerolatency http://rtsp1.grupocriar.com.br:6563/cam2.ffm

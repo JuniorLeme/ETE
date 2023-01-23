@@ -1,0 +1,142 @@
+Versão 4.0.2 - 25/02/2022
+- Correção da incompatibilidade de versão ETE x eCFACnet
+- Criação correta das Tags dos Sistemas (ETE, e-CFCAnet, CRC) no arquivo de Parametros.xml (pasta \ProgramData\Criar\)
+- Inclusão do tratamento do código 1502 Retorno Final SEITran
+- Gravação correta do nro da versão do ETE no arquivo Parametros.xml (detectada pelo Ricardo)
+- Correção de envio da última foto (envio Final SEITran - dentro laço 5x) - estava enviando a penúltima e tb enviava 2x a primeira do laço 
+
+
+Versão 4.0.1 - 19/01/2022
++ Correção da gravação em duplicidade no banco de dados da penúltima e última foto
++ Correção do envio FINAL SEITran com o último combo dedo/foto (1a Habilitação e Reabilitação)
+
+
+Versão 4.0.0 - 10/12/2021
++ Não mostrar informação de sexo na Tela de Identificação do Aluno
++ Mostrar informação de Data de Nascimento do aluno nas Telas de Identificação do Aluno e Tela de Confirmação
++ Na Tela de Resultado, ao clicar no botão "Encerrar", remeter novamente a Tela de Identificação do Aluno (de forma semelhante ao e-CFCAnet) ao invés da Tela de Login
++ Tratar a mensagem "Este aluno já realizou uma avaliação teórica. Não é mais possível realizar provas." O aplicativo deverá ser encerrado ao clicar no OK 
+da mensagem referida
++ Na Tela de Identificação do Aluno, reposicionar o botão "Testar Biometria". Este ajuste será feito pois o botão "Testar DVR" ficará invisível até que o 
+monitoramento do DVR seja resolvido via aplicativo (já conversado na daily 27/10/2021) 
++ Setar Produto ETE na Tela de Login e indisponibilizar a combo, não permitindo troca de produto
++ Acrescentar as mensagens no arquivo de Log do Sistema ETE (comunicação SEITran INICIAL e FINAL)
++ Não excluir mais o arquivo ParametrosETE.xml
++ Correção dos Totais (Geral e por Disciplina) na Tela de Resultado do Exame
++ Gravar o arquivo de Log do ETE em pasta/nome-arquivo diferente da pasta/nome-arquivo do log do eCFCAnet
++ Incluída a chamada de retorno do SEITran (Bio/Foto) com 5 vezes(1+4) no final da Prova (semelhante ao e-CFCAnet)
++ Aumentado o tempo entre tentativas de conexão (operação 200400) - ao finalizar a Prova - de 1s para 5s (semelhante ao e-CFCAnet)
++ Inclusão das informações do arquivo XML de Retorno/Envio (depende da operação) no arquivo de Log do ETE das seguintes operações:
+  ClsOper100300, ClsOper100310, ClsOper100700, ClsOper200200, ClsOper200400, ClsOper200500, ClsOper300100, ClsOper400100, ClsOper100110, ClsOper200110, 
+  ClsOper900600, ClsOper200210, ClsOper100100 
+  As operações ClsOper200100: Questoes da Prova
+               ClsOper200710: Lista Aplicativos, Dispositivos, Processos Ativos, Processos Serviços Proibidos, Serviços Ativos 
+  ESTAS DUAS OPERAÇÕES NÃO DEVERÃO CONSTAR NO ARQUIVO DE Log DO ETE
++ Tratamento de aluno com Exceção Digital - implementar as chamadas intermediárias dentro do Tempo da Prova (as chamadas Inicial e Final permanecem sem alteração)
+  
+
+Versão 3.3.0 - 06/04/2018
+- Ajuste nas operações de envio do questionário
+- Correção na tela de resultado  
++ Melhoria do Log 
+- Correções na tela do cadastro de teste simulado
+
+Versão 3.2.2 - 20/11/2017
++ Implementado monitormaento RTSP
+
+Versão 3.2.0 - 20/09/2017
++ Implementado a Biometria Sharp
++ Implementado a Foto Sharp
+- Ajuste nas operações 
++ Nova operação de estados
++ Correção no cadastro de candidato para Minas Gerais
+
+Versão 3.0.1 - 20/06/2016
++ Ajuste nas telas de captura da foto
++ Ajuste na operação de identificação do computador
++ Ajuste na operação de geração da prova
++ Ajuste na finalização da prova
++ Alteração nos relatórios de resultado
+
+Versão 3.0.0 - 24/03/2016
+- Incorporado os recursos do Shisnine na Prova Eletrônica
+- Ajuste para atender a portaria 101/2016
+- Ajuste no tempo de execução das tarefas
+- Exibição dos resultados no navegador padrão
+
+Versão 2.6.0 - 08/02/2016
+- Executa o Shisnine quando ele não estiver executando
+- Verifica as aplicações instaladas
+- Verifica os dispositivos instalados
+- Verifica o sistema operacional
+- Bloqueio da prova com base nos dispositivos instalados
+- Bloqueio da prova com base nos aplicativos instalados
+
+Versão 2.5.1 - 12/01/2016
+- Verifica se aplicação está executando
+- Executa a CRC XE quando ele não estiver executando
+
+Versão 2.5.0 - 07/01/2016
++ Bloqueio da prova com base nos programas analisados
+
+Versão 2.4.2 - 26/08/2015
+- Corrigido erro de falta do arquivo parametros.cfg
+
+Versão 2.4.1 - 20/07/2015
++ Nova CRC (CRC XE V 1.0.1)
++ Rotinas de ajuste para a CRC XE
++ Novo arquivo de parametro para CRC XE 
+
+Versão 2.4.0 - 17/04/2015
++ Nova rotina de identificação de processos e serviços
+
+Versão 2.3.7 - 12/01/2015
++ Ajuste na rotina da UF para Alagoas
++ Ajuste no Instalador
++ Melhorias na rotina de montagem do questionário
++ Alteração no bloqueio de Prova
+
+Versão 2.3.5 - 20/10/2014
++ Ajuste da rotina de captura da foto
++ Ajuste no parametro do sistema
++ Icone de monitoramento da sala
++ Foco da camera
+
+Versão 2.3.4 - 06/10/2014
++ Ajuste no avanço automático de questões
++ Ajuste no foco da camera
++ Correção do icone no monitoramento
++ Ajuste no envio do hash
++ Correção no controle do teclado 
+
+Versão 2.3.3 - 09/09/2014
++ e-CFCA Net
++ Ajuste no avanço automático de questões
++ Ajuste de teclas
+
+Versão 2.3.2 - 09/06/2014
++ e-Prova MG
++ Ajuste nas telas
++ Tela do Teclado
++ Ajuste de teclas
+
+Versão 2.3.0 - 05/06/2014
++ e-CFCANet
++ Ajuste nas telas
+
+Versão 2.1.1 - 30/02/2014
++ Ajuste no gráfico do resultado
++ Ajuste no tipo de fonte do resultado
++ Botão reiniciar sempre ativo
++ Ajuste das mensagens 
++ Implementado rotina de exceção digital temporária
++ Nova tela de biometria com foto
++ Nova tela de foto
++ Novo botão de impressão de prova na tela de resultado
++ Ajuste no gráfico por matéria na tela de resultado
++ Ajuste no tamanho da imagem nas questões
++ Parâmetro de operação nas impressões
+
+Versão 2.0.1 - 06/12/2013
++ Primeira Versão do e-Prova BA XE
+

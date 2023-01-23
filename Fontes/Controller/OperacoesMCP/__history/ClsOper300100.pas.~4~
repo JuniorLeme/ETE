@@ -1,0 +1,74 @@
+unit ClsOper300100;
+
+interface
+
+uses
+  ClsOperacoes, Xml.xmldom, Xml.XMLIntf, Xml.Win.msxmldom, Xml.XMLDoc,
+  System.SysUtils, ClsParametros, ClsServidorControl, System.Classes,
+  ClsEnvioMCP, ClsRetornoMCP;
+
+type
+
+  T300100Envio = class(TEnvioMCP)
+    Function MontaXMLEnvio(ID_Aluno: String; Foto: WideString): IXMLDocument;
+  end;
+
+  T300100Retorno = class(TRetornoMCP)
+    Procedure MontaRetorno(XMLDoc: IXMLDocument);
+  end;
+
+implementation
+
+uses ClsFuncoes;
+
+Procedure T300100Retorno.MontaRetorno(XMLDoc: IXMLDocument);
+begin
+
+  try
+
+    Self.Retorno(XMLDoc);
+    if Self.IsValid then
+      begin
+      mensagem := 'Presença registrada com sucesso!';
+
+      ArquivoLog.GravaArquivoLog('OPER300100-RETORNO ' + #13+#10 + XMLDoc.XML.Text);
+      end;
+
+  except
+    on Erro: Exception do
+    begin
+
+      ArquivoLog.GravaArquivoLog('Operação 300100 - Retorno Padrão - ' +
+        Erro.Message);
+      XMLDoc.Active := False;
+    end;
+  end;
+
+end;
+
+Function T300100Envio.MontaXMLEnvio(ID_Aluno: String; Foto: WideString)
+  : IXMLDocument;
+var
+  EnvioMCP: TEnvioMCP;
+  XMLElementoEnvio: IXMLNode;
+  XMLID_Aluno: IXMLNode;
+  NoFoto: IXMLNode;
+begin
+
+  Result := TXMLDocument.Create(nil);
+  Result.Active := False;
+  Result.Active := True;
+
+  EnvioMCP := TEnvioMCP.GetInstance;
+  XMLElementoEnvio := EnvioMCP.GetEnvioMCP('300100', Result);
+
+  XMLID_Aluno := XMLElementoEnvio.AddChild('aluno');
+  XMLID_Aluno.Text := ' ';
+  XMLID_Aluno.Attributes['id'] := ID_Aluno;
+
+  NoFoto := XMLID_Aluno.AddChild('foto');
+  NoFoto.Text := Foto;
+
+end;
+
+end.

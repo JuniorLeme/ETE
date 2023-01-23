@@ -1,0 +1,125 @@
+unit clsDVRFerramentas;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+  System.Classes,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, ShellApi, Vcl.Graphics,
+  System.Generics.Collections,
+  Vcl.StdCtrls, System.Types;
+
+type
+  TDVRFerramentas = class(TObject)
+    Id: Integer;
+    Verificar: String;
+    Tempo: Integer;
+    Endereco: string;
+    Porta: Integer;
+    Usuario: string;
+    Senha: string;
+    Status: string;
+    cfcliveSituacao: Integer;
+    cfcliveTipo: string;
+    cfcliveMensagem: string;
+    cfcliveHint: string;
+  private
+    function RunDosInMemo(Programa, Parametro: String): String;
+  public
+    function DVRStatus: string;
+    constructor Create;
+  end;
+
+var
+  DVRFerramentas: TDVRFerramentas;
+
+implementation
+
+constructor TDVRFerramentas.Create;
+begin
+  Id := 0;
+  Verificar := 'N';
+  Tempo := 0;
+  Endereco := '';
+  Porta := 0;
+  Usuario := '';
+  Senha := '';
+end;
+
+function TDVRFerramentas.DVRStatus: string;
+begin
+  Status := 'Desligado';
+
+  // Para Teste
+  // Endereco := 'testecfcanet.ddns.net';
+  // Porta := 37777;
+  // Porta := 0;
+  // Usuario := 'admin';
+  // Senha := 'admin';
+  //   Verificar := 'S';
+
+  if Porta = 0 then
+  begin
+    Status := 'Ligado';
+    Result := Status;
+    Exit;
+  end;
+
+  if Endereco.IsEmpty then
+  begin
+    Status := 'Ligado';
+    Result := Status;
+    Exit;
+  end;
+
+  Status := RunDosInMemo(ExtractFilePath(ParamStr(0)) + 'eStatusDVRSharp.exe ',
+    Endereco + ' ' + Porta.ToString + ' ' + Usuario + ' ' + Senha + ' ' +    Verificar);
+
+  Result := Status;
+
+end;
+
+function TDVRFerramentas.RunDosInMemo(Programa, Parametro: String): String;
+var
+  tmp: TFileStream;
+  ByteArray : Array of Byte;
+  Index     : Integer;
+begin
+
+  if FileExists(ExtractFilePath(ParamStr(0)) + 'eDVRStatus.sts') then
+    DeleteFile(ExtractFilePath(ParamStr(0)) + 'eDVRStatus.sts');
+
+  ShellExecute(Application.Handle, PChar('open'), PChar(Programa),
+    PChar(Parametro), PChar(ExtractFilePath(ParamStr(0))), SW_HIDE);
+  Sleep(2000);
+
+  // eDVRStatus.sts
+  if FileExists(ExtractFilePath(ParamStr(0)) + 'eDVRStatus.sts') then
+  begin
+
+    repeat
+      tmp := TFileStream.Create( Pchar(ExtractFilePath(ParamStr(0)) + 'eDVRStatus.sts'), fmOpenRead);
+
+      try
+        // Declare our array to hold the returned data
+        SetLength(ByteArray, 12);
+
+        // Get the stream contents 3 characters at a time into our array
+        tmp.ReadBuffer(ByteArray, tmp.Size);
+        Result := ByteArray[Index].ToString;
+
+        tmp.Free;
+      except
+        on E: Exception do
+          tmp.Free;
+      end;
+
+    until (Result <> '' );
+
+  end;
+
+  if Result = '' then
+    Result := 'Desligado';
+end;
+
+end.

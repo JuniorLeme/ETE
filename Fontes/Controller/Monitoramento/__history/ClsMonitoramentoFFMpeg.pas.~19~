@@ -1,0 +1,516 @@
+unit ClsMonitoramentoFFMpeg;
+
+interface
+
+uses
+  Winapi.Windows, Vcl.StdCtrls, System.Classes, System.SysUtils, System.Win.ComObj, Vcl.Graphics,
+  System.Win.ScktComp, System.IOUtils, System.UITypes, ClsFuncoes, ClsQuestionario, System.Variants,
+  ClsMonitoramentoRTSP, ClsCandidatoControl, ClsMonitoramentoRTSPControl, ClsCFCControl, ClsOperacoes,
+  Vcl.Dialogs, Vcl.Forms, Winapi.ActiveX, ShellApi, ClsOper200400, ClsOper400100, ClsServidorControl,
+  ClsParametros, ClsConexaoFerramentas;
+
+type
+  TThreadFFMpeg = class(TThread)
+  protected
+
+    FLastException: Exception;
+
+    MonitoramentoTentativas: Integer;
+    TipoJanela: Integer;
+
+    procedure Execute; override;
+    procedure HandleThreadException;
+    procedure ThreadDone;
+    procedure IniciaStream;
+    procedure Monitoramento;
+    procedure FinalizaStream;
+    procedure gravaArquivoTexto(nomeDoArquivo: String; camera: String);
+    function ProcurarWebcam: String;
+    function VerificaAcento(Str: string): Boolean;
+  private
+  public
+
+    MatarFFMpeg: Boolean;
+    AbrirFFMpeg: Boolean;
+    VarificaFFMPeg: Boolean;
+
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
+implementation
+
+destructor TThreadFFMpeg.Destroy;
+begin
+  inherited Destroy;
+end;
+
+constructor TThreadFFMpeg.Create;
+begin
+
+  FreeOnTerminate := False;
+  inherited Create(True);
+
+  MatarFFMpeg := False;
+  AbrirFFMpeg := False;
+  MonitoramentoTentativas := 0;
+
+  TipoJanela := SW_HIDE;
+  // TipoJanela := SW_SHOWNORMAL;
+
+end;
+
+procedure TThreadFFMpeg.Execute;
+begin
+
+  try
+
+    try
+
+      CoInitializeEx(nil, 2);
+      Self.Priority := tpLower;
+
+      if MatarFFMpeg then
+        FinalizaStream;
+
+      if AbrirFFMpeg then
+        IniciaStream;
+
+      if VarificaFFMPeg then
+        Monitoramento;
+
+    except
+      on E: Exception do
+      begin
+        ArquivoLog.GravaArquivoLog('Thread Cronometro - Execute: ' + E.Message);
+        if not(ExceptObject is EAbort) then
+        begin
+          FLastException := E;
+          Synchronize(HandleThreadException);
+        end;
+      end;
+    end;
+  finally
+    // Tell the main form that we are done
+    Synchronize(ThreadDone);
+  end;
+end;
+
+procedure TThreadFFMpeg.HandleThreadException;
+begin
+  ArquivoLog.GravaArquivoLog('Monitoramento - Thread ');
+end;
+
+procedure TThreadFFMpeg.ThreadDone;
+begin
+  // Self.Terminate;
+end;
+
+procedure TThreadFFMpeg.IniciaStream;
+var
+  caminho: string;
+  MonitoramentoClntSckt: TMonitoramentoClntSckt;
+
+  Tetativas: Integer;
+  RetornoGravaMonitoramento: string;
+  Conexao: TConexao;
+begin
+
+  try
+    // deste jeito funciona
+    KillTask('ffmpeg.exe');
+  except
+    on E: Exception do
+  end;
+
+  try
+    if Conexao.Telnet(ParMonitoramentoRTSP.Endereco_Servidor, ParMonitoramentoRTSP.Porta_Servidor) then
+      ArquivoLog.GravaArquivoLog('IniciaStream - Monitoramento Porta ' + ParMonitoramentoRTSP.Porta_Servidor.ToString + ': on ')
+    else
+      ArquivoLog.GravaArquivoLog('IniciaStream - Monitoramento Porta ' + ParMonitoramentoRTSP.Porta_Servidor.ToString + ': off ');
+  except
+    on E: Exception do
+  end;
+
+  try
+    if Conexao.Telnet(ParMonitoramentoRTSP.Endereco_Servidor, 6563) then
+      ArquivoLog.GravaArquivoLog('IniciaStream - Monitoramento Porta 6563: on ')
+    else
+      ArquivoLog.GravaArquivoLog('IniciaStream - Monitoramento Porta 6563: off ');
+  except
+    on E: Exception do
+  end;
+
+  try
+    ParMonitoramentoFluxoRTSP.Fluxo := 0;
+
+    if (ParCFC.Monitoramento_prova = 'S') and (ParCandidato.TipoProva = 'P') then
+    begin
+
+      Tetativas := 0;
+      repeat
+
+        if ParListaMonitoramentoRTSP.Count > 0 then
+          ParMonitoramentoRTSP := TMonitoramentoRTSP(ParListaMonitoramentoRTSP.Objects[Tetativas]);
+
+        MonitoramentoClntSckt := TMonitoramentoClntSckt.Create(nil);
+
+        ParMonitoramentoFluxoRTSP.Cam := MonitoramentoClntSckt.SendSocketComand(ParMonitoramentoRTSP.Verificar_Cameras + ReplaceStr(Parametros.NomeSistema,
+          '-' + LowerCase(ParCFC.UF), '') + ';' + ParCFC.UF + ';' + ParCFC.id_cfc + ';' + IntToStr(ParQuestionario.Id_prova) + ';' +
+          ParCandidato.CPFCandidato + ';');
+        MonitoramentoClntSckt.Free;
+
+        if ParMonitoramentoFluxoRTSP.Cam = '' then
+          Inc(Tetativas)
+        else
+          Tetativas := 10000;
+
+      until (Tetativas >= ParListaMonitoramentoRTSP.Count);
+
+    end;
+
+    if ParMonitoramentoFluxoRTSP.Cam = '' then
+    begin
+      // Aviso(mtInformation, 'O candidato não pode fazer a prova. O monitoramento está inativo, entre em contato com o suporte!');
+      // Application.Terminate;
+    end;
+
+    if (ParCFC.Monitoramento_Simulado = 'S') and (ParCandidato.TipoProva = 'S') then
+    begin
+
+      Tetativas := 0;
+      repeat
+
+        if ParListaMonitoramentoRTSP.Count > 0 then
+          ParMonitoramentoRTSP := TMonitoramentoRTSP(ParListaMonitoramentoRTSP.Objects[Tetativas]);
+
+        MonitoramentoClntSckt := TMonitoramentoClntSckt.Create(nil);
+        ParMonitoramentoFluxoRTSP.Cam := MonitoramentoClntSckt.SendSocketComand(ParMonitoramentoRTSP.Verificar_Cameras + ReplaceStr(Parametros.NomeSistema,
+          '-' + LowerCase(ParCFC.UF), '') + ';' + ParCFC.UF + ';' + ParCFC.id_cfc + ';' + IntToStr(ParQuestionario.Id_prova) + ';' +
+          ParCandidato.CPFCandidato + ';');
+        MonitoramentoClntSckt.Free;
+        if ParMonitoramentoFluxoRTSP.Cam = '' then
+          Inc(Tetativas)
+        else
+          Tetativas := 10000;
+
+      until (Tetativas >= ParListaMonitoramentoRTSP.Count);
+
+    end;
+
+    if ParMonitoramentoFluxoRTSP.Cam = '' then
+    begin
+      // Aviso(mtInformation, 'O candidato não pode fazer a prova. O monitoramento está inativo, entre em contato com o suporte!');
+      // Application.Terminate;
+    end;
+
+    if ParMonitoramentoFluxoRTSP.Cam <> '' then
+    begin
+
+      RetornoGravaMonitoramento := '';
+
+      ParMonitoramentoRTSP.camera := 'Câmera: ' + ParMonitoramentoFluxoRTSP.Cam;
+      ParMonitoramentoFluxoRTSP.DescricaoMonitoramentoRTSP := 'Situação: Iniciando';
+
+      caminho := ExtractFilePath(ParamStr(0)) + 'start.bat';
+      gravaArquivoTexto(caminho, ParMonitoramentoFluxoRTSP.Cam);
+
+      ShellExecute(Application.Handle, 'runas', PChar(caminho), nil, nil, TipoJanela);
+      ArquivoLog.GravaArquivoLog(caminho);
+
+      // sistema=ecfcanet &uf=sp &cfc=15 &id_prova=123456 &cpf=99999999999 &cam=cam1
+      ArquivoLog.GravaArquivoLog(ParMonitoramentoRTSP.Iniciar_Gravacao + 'sistema=' + Parametros.NomeSistema + '&uf=' + ParCFC.UF + '&cfc=' + ParCFC.id_cfc +
+        '&id_prova=' + IntToStr(ParQuestionario.Id_prova) + '&cpf=' + ParCandidato.CPFCandidato + '&cam=' + ParMonitoramentoFluxoRTSP.Cam);
+
+      Sleep(2000); // Aguarda o inicio da transferencia da imagem
+
+      Tetativas := 0;
+
+      repeat
+
+        if ParListaMonitoramentoRTSP.Count > 0 then
+          ParMonitoramentoRTSP := TMonitoramentoRTSP(ParListaMonitoramentoRTSP.Objects[Tetativas]);
+
+        MonitoramentoClntSckt := TMonitoramentoClntSckt.Create(nil);
+
+        ParMonitoramentoFluxoRTSP.Status := MonitoramentoClntSckt.SendSocketComand(ParMonitoramentoRTSP.Iniciar_Gravacao + ReplaceStr(Parametros.NomeSistema,
+          '-' + LowerCase(ParCFC.UF), '') + ';' + ParCFC.UF + ';' + ParCFC.id_cfc + ';' + IntToStr(ParQuestionario.Id_prova) + ';' + ParCandidato.CPFCandidato +
+          ';' + ParMonitoramentoFluxoRTSP.Cam + ';');
+        MonitoramentoClntSckt.Free;
+
+        if ParMonitoramentoFluxoRTSP.Cam = '' then
+          Inc(Tetativas)
+        else
+          Tetativas := 5000;
+
+      until (Tetativas >= ParListaMonitoramentoRTSP.Count);
+
+    end;
+
+    ArquivoLog.GravaArquivoLog('IniciaStream - Monitoramento: on ');
+
+  except
+    on E: Exception do
+  end;
+
+end;
+
+procedure TThreadFFMpeg.Monitoramento;
+var
+  MonitoramentoClntSckt: TMonitoramentoClntSckt;
+  CamTamanhoAtual: Double;
+  Oper400Env: T400100Envio;
+  Oper400ret: T400100Retorno;
+  Consulta: MainOperacao;
+  Tetativas: Integer;
+begin
+
+  ArquivoLog.GravaArquivoLog('Verifica Monitoramento');
+
+  Try
+
+    Tetativas := 0;
+    repeat
+
+      if ParListaMonitoramentoRTSP.Count > 0 then
+        ParMonitoramentoRTSP := TMonitoramentoRTSP(ParListaMonitoramentoRTSP.Objects[Tetativas]);
+
+      MonitoramentoClntSckt := TMonitoramentoClntSckt.Create(nil);
+      CamTamanhoAtual := StrToFloatDef(MonitoramentoClntSckt.SendSocketComand(ParMonitoramentoRTSP.Verificar_Fluxo + ParMonitoramentoFluxoRTSP.Cam + ';'), 0);
+      MonitoramentoClntSckt.Free;
+
+      if CamTamanhoAtual <= 4096 then
+        Inc(Tetativas)
+      else
+        Tetativas := 10000;
+
+    until (Tetativas >= ParListaMonitoramentoRTSP.Count);
+
+    ParMonitoramentoFluxoRTSP.DescricaoFluxo := 'Fluxo: ' + FloatToStr(ParMonitoramentoFluxoRTSP.Fluxo);
+
+    if CamTamanhoAtual = 4096 then
+      CamTamanhoAtual := 0;
+
+    if CamTamanhoAtual > ParMonitoramentoFluxoRTSP.Fluxo then
+    begin
+
+      MonitoramentoTentativas := 0;
+      ParMonitoramentoFluxoRTSP.Fluxo := CamTamanhoAtual;
+
+      { Atualiza o registro de monitoramento online }
+      ParMonitoramentoFluxoRTSP.DescricaoMonitoramentoRTSP := 'Situação: Transmitindo';
+
+      if Trim(ParMonitoramentoFluxoRTSP.Cam) <> '' then
+      begin
+
+        try
+          // Efetuar a operação 400100
+          Consulta := MainOperacao.Create(nil, '400100');
+
+          Oper400Env := T400100Envio.Create;
+          Oper400ret := T400100Retorno.Create;
+
+          Oper400ret.MontaRetorno(Consulta.Consultar(IntToStr(ParServidor.ID_Sistema), Oper400Env.MontaXMLEnvio(IntToStr(ParQuestionario.Id_prova),
+            ParCandidato.TipoProva, Trim(ParMonitoramentoFluxoRTSP.Cam), ParMonitoramentoRTSP.Endereco_Servidor,
+            'rtsp://' + ParMonitoramentoRTSP.Endereco_Servidor + ':563/h264_' + ParMonitoramentoFluxoRTSP.Cam + '.sdp'),
+            'A Prova está pausada, pois não há conexão com a Internet. Verifique sua conexão.' + #13 + 'Monitoramento em alerta.'));
+
+        except
+          on E: Exception do
+          begin
+            Self.Terminate;
+            { Atualiza o registro de monitoramento online }
+            ParMonitoramentoFluxoRTSP.Status := 'F';
+
+            // Pedido do Osvaldo e do Sérgio - 04/12/2017
+            // Eles vão pedir para retornar a mesma menssagem - 04/12/2017
+            ParMonitoramentoFluxoRTSP.DescricaoMonitoramentoRTSP := 'Situação: ';
+
+          end;
+
+        end;
+
+      end
+      else
+        ArquivoLog.GravaArquivoLog('Monitoramento => ############### Camera ################# ');
+
+    end
+    else
+    begin
+
+      ArquivoLog.GravaArquivoLog('Monitoramento => # Tamanho : ' + FloatToStr(CamTamanhoAtual) + ' to ' + FloatToStr(ParMonitoramentoFluxoRTSP.Fluxo));
+
+      { Atualiza o registro de monitoramento online }
+      ParMonitoramentoFluxoRTSP.Status := 'F';
+
+      // Pedido do Osvaldo e do Sérgio - 04/12/2017
+      // Eles vão pedir para retornar a mesma menssagem - 04/12/2017
+      ParMonitoramentoFluxoRTSP.DescricaoMonitoramentoRTSP := 'Situação: ';
+
+    end;
+
+  except
+    begin
+      { Atualiza o registro de monitoramento online }
+      ParMonitoramentoFluxoRTSP.Status := 'F';
+      Self.Terminate;
+    end;
+  end;
+
+end;
+
+procedure TThreadFFMpeg.FinalizaStream;
+var
+  Consulta: MainOperacao;
+
+  Oper400Env: T400100Envio;
+  Oper400ret: T400100Retorno;
+begin
+
+  try
+    // deste jeito funciona
+    KillTask('ffmpeg.exe');
+    ParMonitoramentoFluxoRTSP.Fluxo := 0;
+    ParMonitoramentoRTSP.camera := 'Câmera:';
+    ParMonitoramentoFluxoRTSP.DescricaoMonitoramentoRTSP := 'Situação:';
+  except
+    on E: Exception do
+      Self.Terminate;
+  end;
+
+  try
+    // Efetuar a operação 400100
+    Consulta := MainOperacao.Create(nil, '400100');
+
+    Oper400Env := T400100Envio.Create;
+    Oper400ret := T400100Retorno.Create;
+
+    ParMonitoramentoFluxoRTSP.Status := 'F';
+
+    Oper400ret.MontaRetorno(Consulta.Consultar(IntToStr(ParServidor.ID_Sistema), Oper400Env.MontaXMLEnvio(IntToStr(ParQuestionario.Id_prova),
+      ParCandidato.TipoProva, Trim(ParMonitoramentoFluxoRTSP.Cam), ParMonitoramentoRTSP.Endereco_Servidor, 'rtsp://' + ParMonitoramentoRTSP.Endereco_Servidor +
+      ':563/h264_' + ParMonitoramentoFluxoRTSP.Cam + '.sdp'), 'A Prova está pausada, pois não há conexão com a Internet. Verifique sua conexão.' + #13 +
+      'Monitoramento em alerta.'));
+
+  except
+    on E: Exception do
+    begin
+      Self.Terminate;
+      { Atualiza o registro de monitoramento online }
+      ParMonitoramentoFluxoRTSP.Status := 'F';
+
+      // Pedido do Osvaldo e do Sérgio - 04/12/2017
+      // Eles vão pedir para retornar a mesma menssagem - 04/12/2017
+      ParMonitoramentoFluxoRTSP.DescricaoMonitoramentoRTSP := 'Situação: ';
+
+    end;
+
+  end;
+
+end;
+
+procedure TThreadFFMpeg.gravaArquivoTexto(nomeDoArquivo: String; camera: String);
+var
+  arq: TextFile;
+  WebCamera: string;
+begin
+
+  WebCamera := ProcurarWebcam;
+  // WebCamera := 'USB Webcam Vídeo';
+
+  ArquivoLog.GravaArquivoLog('IniciaStream - Webcam ' + WebCamera);
+
+  if Trim(WebCamera) <> '' then
+  begin
+    if VerificaAcento(WebCamera) then
+    begin
+      WebCamera := '';
+      ArquivoLog.GravaArquivoLog('IniciaStream - Webcam ' + WebCamera);
+    end;
+  end;
+
+  AssignFile(arq, nomeDoArquivo);
+  Rewrite(arq);
+
+  if Trim(WebCamera) <> '' then
+    Write(arq, 'ffmpeg -f dshow -i video="' + WebCamera + '" -vcodec libx264 -timeout 12000000 -tune zerolatency http://' +
+      Trim(ParMonitoramentoRTSP.Endereco_Servidor) + ':6563/' + Trim(camera) + '.ffm')
+  else
+    Write(arq, 'ffmpeg -f vfwcap -i 0 -vcodec libx264 -timeout 12000000 -tune zerolatency http://' + Trim(ParMonitoramentoRTSP.Endereco_Servidor) + ':6563/' +
+      Trim(camera) + '.ffm');
+
+  CloseFile(arq);
+
+end;
+
+function TThreadFFMpeg.ProcurarWebcam: String;
+const
+  wbemFlagForwardOnly = $00000020;
+
+var
+  FSWbemLocator: OleVariant;
+  FWMIService: OleVariant;
+  FWbemObjectSet: OleVariant;
+  FWbemObject: OleVariant;
+  oEnum: IEnumvariant;
+  iValue: LongWord;
+  ListaCamera: TStringList;
+begin
+
+  ListaCamera := TStringList.Create;
+  ListaCamera.Clear;
+
+  FSWbemLocator := CreateOleObject('WbemScripting.SWbemLocator');
+  FWMIService := FSWbemLocator.ConnectServer('localhost', 'root\cimv2', '', '');
+  FWbemObjectSet := FWMIService.ExecQuery('SELECT * FROM  Win32_PnPEntity WHERE (Service = ''usbvideo'' or Service = ''USBET'') and Status = ''OK''', 'WQL',
+    wbemFlagForwardOnly);
+  oEnum := IUnknown(FWbemObjectSet._NewEnum) as IEnumvariant;
+
+  while oEnum.Next(1, FWbemObject, iValue) = 0 do
+  begin
+
+    try
+
+      try
+        ListaCamera.Add(FWbemObject.Caption);
+      except
+        on E: Exception do
+          Continue;
+      end;
+
+      FWbemObject := Unassigned;
+    except
+      on E: Exception do
+      begin
+        FWbemObject := Unassigned;
+      end;
+    end;
+
+  end;
+
+  if ListaCamera.Count > 0 then
+    Result := ListaCamera[0];
+
+end;
+
+function TThreadFFMpeg.VerificaAcento(Str: string): Boolean;
+const
+  // Manter os espaços
+  Permitidos = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,-_()[]^~/\|*-+';
+
+var
+  x: Integer;
+begin
+
+  Result := False;
+
+  for x := 1 to length(Str) do
+    if Pos(UpperCase(Str[x]), Permitidos) = 0 then
+    begin
+      Result := True;
+      Break;
+    end;
+
+end;
+
+end.

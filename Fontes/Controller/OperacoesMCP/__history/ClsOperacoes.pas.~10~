@@ -1,0 +1,482 @@
+unit ClsOperacoes;
+
+interface
+
+uses
+  System.Classes, System.SysUtils, Vcl.StdCtrls, Vcl.Graphics, Vcl.Controls,
+  Vcl.ComCtrls,
+  Vcl.ExtCtrls, Winapi.WinInet, IdHTTP, IdTCPConnection, IdTCPClient,
+  IdBaseComponent,
+  Soap.SOAPHTTPClient, Xml.xmldom, Xml.XMLIntf, Xml.Win.msxmldom, Xml.XMLDoc,
+  ClsToken,
+  ClsCFCControl, ClsRetornoToken, ClsWebService, ClsParametros,
+  ClsConexaoFerramentas,
+  Vcl.Forms, Vcl.Dialogs, Soap.SOAPHTTPTrans, ClsServidorControl,
+  ControllerCryptography;
+
+type
+  MainOperacao = class(TComponent)
+  private
+    FXmlRetornoPadrao: WideString;
+    FXmlRetorno: WideString;
+
+    procedure SetRetornoPadrao(Xml: WideString);
+    function GetRetornoPadrao(): WideString;
+
+  protected
+    FCodOperacao: String;
+    ParToken: String;
+    Conexao: TConexao;
+
+  const
+    Servico = 'Operacoes.executar';
+    Porta = 'OperacoesPort';
+
+    procedure HttpRioBeforeExecute(const MethodName: string; Request: TStream);
+    function ExecutarConsultar(strID_Sistema: string; envio: IXMLDocument;
+      Aviso: String = ''): IXMLDocument;
+
+  public
+    Status: TLabel;
+    property CodOperacao: String read FCodOperacao write FCodOperacao;
+    property XMLRetorno: WideString read FXmlRetorno write FXmlRetorno;
+    property XMLRetornoPadrao: WideString read GetRetornoPadrao
+      write SetRetornoPadrao;
+    function consultar(strID_Sistema: string; envio: IXMLDocument;
+      Aviso: String = ''): IXMLDocument;
+
+    Constructor Create(Sender: TComponent; ParOperacao: string); overload;
+  end;
+
+implementation
+
+uses ClsFuncoes, FrmAvisoConexao;
+
+function MainOperacao.consultar(strID_Sistema: string; envio: IXMLDocument;
+  Aviso: String = ''): IXMLDocument;
+var
+  net: TConexao;
+begin
+
+  try
+
+    Result := ExecutarConsultar(strID_Sistema, envio, Aviso);
+
+    if Trim(FXmlRetorno) = '' then
+    begin
+      FXmlRetorno :=
+        '<?xml version="1.0" encoding="Latin1"?><retorno servidor="' +
+        IntToStr(ParServidor.ID_Sistema) + '" usuario="0" operacao="' +
+        FCodOperacao +
+        '" codigo="D998"><mensagem tipo="I" id="001"><texto>Verifique sua conexão de internet e rede.</texto></mensagem></retorno>';
+    end;
+
+    if Status <> nil then
+      Status.Caption := 'MCP: OK';
+
+  except
+    on Erro: ESOAPHTTPException do
+    begin
+
+      if Debug then
+        ArquivoLog.GravaArquivoLog('ESOAPHTTPException - Retorno: ' +
+          Erro.Message);
+
+      if Status <> nil then
+        Status.Caption := 'MCP: -';
+
+      ArquivoLog.GravaArquivoLog(Erro.Message + ' - Retorno Padrão ');
+      FXmlRetorno :=
+        '<?xml version="1.0" encoding="Latin1"?><retorno servidor="' +
+        IntToStr(ParServidor.ID_Sistema) + '" usuario="0" operacao="' +
+        FCodOperacao +
+        '" codigo="D998"><mensagem tipo="S" id="998" ><texto>A Prova está pausada, pois não há conexão com a Internet. Verifique sua conexão.</texto>'
+        + '</mensagem></retorno>';
+
+      if Trim(Result.Xml.Text) = '' then
+      begin
+        Result.Xml.Text :=
+          '<?xml version="1.0" encoding="Latin1"?><retorno servidor="' +
+          IntToStr(ParServidor.ID_Sistema) + '" usuario="0" operacao="' +
+          FCodOperacao +
+          '" codigo="D998"><mensagem tipo="I" id="001"><texto>A Prova está pausada, pois não há conexão com a Internet. Verifique sua conexão.</texto></mensagem></retorno>';
+        Exit;
+      end;
+
+    end;
+  end;
+
+  Result := TXMLDocument.Create(nil);
+  Result.Xml.Text := FXmlRetorno;
+
+end;
+
+constructor MainOperacao.Create(Sender: TComponent; ParOperacao: string);
+begin
+
+  FCodOperacao := ParOperacao;
+
+  // http://servidor1.eprova.com.br:8080/mcp/Operations?WSDL
+  // WSDL: http://200.233.218.131:8080/mcp/Operations?WSDL
+  // Teste: 200.233.218.131:8080/mcp/Operations?Tester
+  // http://cesio.keynet.com.br:443/mcp/Operations
+
+  FXmlRetornoPadrao :=
+    '<?xml version="1.0" encoding="Latin1"?><retorno servidor="' +
+    IntToStr(ParServidor.ID_Sistema) + '" usuario="0" operacao="' + ParOperacao
+    + '" codigo="D998"><mensagem tipo="E" id="998">' +
+    '<texto>A Prova está pausada, pois não há conexão com a Internet. Verifique sua conexão.Monitoramento em alerta.</texto>'
+    + '</mensagem></retorno>';
+
+end;
+
+function MainOperacao.ExecutarConsultar(strID_Sistema: string;
+  envio: IXMLDocument; Aviso: String = ''): IXMLDocument;
+var
+  Token: TToken;
+  strToken: string;
+  strXML: string;
+
+  HttpRio: THTTPRIO;
+  IdHTTP1: TIdHTTP;
+
+  ListaLinks: TStringList;
+  IndiceDoServidor: Integer;
+  IndiceDoLink: Integer;
+
+  net: TConexao;
+  Frm_Aviso: TFrm_AvisoConexao;
+begin
+  if envio.Xml.Text = '' then
+  begin
+    FXmlRetorno := '<?xml version="1.0" encoding="Latin1"?><retorno servidor="'
+      + IntToStr(ParServidor.ID_Sistema) + '" usuario="0" operacao="' +
+      FCodOperacao +
+      '" codigo="D998"><mensagem tipo="I" id="000"><texto>Verficar Envio </texto></mensagem></retorno>';
+    Exit;
+  end;
+
+  try
+
+    Token := TToken.Create;
+
+    if retToken = nil then
+      retToken := TRetToken.Create;
+
+    if Debug then
+      ArquivoLog.GravaArquivoLog('Token');
+
+    strToken := retToken.GetToken(Token.GetTokenMCP(Parametros.Usuario,
+      Parametros.Senha, Aviso));
+
+    strXML := envio.Xml.Text;
+
+    ListaLinks := TStringList.Create;
+
+    HttpRio := THTTPRIO.Create(nil);
+
+    // Almenta o tempo de espera
+    HttpRio.OnBeforeExecute := HttpRioBeforeExecute;
+    // HttpRio.OnBeforePost := OnBeforeHTTPPost;
+
+    if retToken.IsValid then
+    begin
+
+      if Debug then
+        ArquivoLog.GravaArquivoLog('Token valido');
+
+      if (Trim(XMLRetorno) = '') then
+      begin
+
+        if Debug then
+          ArquivoLog.GravaArquivoLog('Link');
+
+        IndiceDoServidor := Random(Parametros.ListaServidores.Count - 1);
+        ListaLinks.Text := (Parametros.ListaServidores.Objects[IndiceDoServidor]
+          as TStringList).Text;
+        IndiceDoLink := Random(ListaLinks.Count - 1);
+
+        HttpRio.URL := ListaLinks[IndiceDoLink];
+        HttpRio.URL := ReplaceStr(HttpRio.URL, '/mcp/Operations',
+          '/mcp-5.0.0/Operations');
+        HttpRio.Service := Servico;
+        HttpRio.Port := Porta;
+
+        // if (Parametros.ProxyURL <> '') and (Parametros.ProxyUsername <> '') and (Parametros.ProxyPassword <> '') then
+        // begin
+        // HttpRio.HTTPWebNode.Proxy := Parametros.ProxyURL;
+        // HttpRio.HTTPWebNode.Username := 'levi@grupocriar';
+        // HttpRio.HTTPWebNode.Password := Parametros.ProxyPassword;
+        // end;
+
+        ArquivoLog.GravaArquivoLog(FCodOperacao + ' Link ' + HttpRio.URL);
+
+        repeat
+
+          if Debug then
+            ArquivoLog.GravaArquivoLog('Ping');
+
+          if net.PingDNSGrupoCRIAR then
+          begin
+
+            if Debug then
+              begin
+              //200710 Lista Aplicativos, Dispositivos, Processos Ativos, Processos Serviços Proibidos,
+              //       Serviços Ativos
+              if Trim(FCodOperacao) <> '200710' then
+                begin
+                ArquivoLog.GravaArquivoLog(FCodOperacao + ' cripto_execute - Envio ' + envio.Xml.Text);
+                end;
+              end;
+
+            FXmlRetorno :=
+              AESDecrypt((HttpRio as Main).cripto_execute(strID_Sistema,
+              strToken, AESEncrypt(strXML)));
+
+            if Debug then
+              begin
+              //200100 Questoes da Prova
+              if Trim(FCodOperacao) <> '200100' then
+                begin
+                ArquivoLog.GravaArquivoLog(FCodOperacao + ' cripto_execute - Retorno ' + FXmlRetorno);
+                end;
+              end;
+
+          end
+          else
+          begin
+
+            if Debug then
+              ArquivoLog.GravaArquivoLog('Ping falhou');
+
+            if Parametros.AguardarAviso then
+            begin
+              FXmlRetorno :=
+                '<?xml version="1.0" encoding="Latin1"?><retorno servidor="' +
+                IntToStr(ParServidor.ID_Sistema) + '" usuario="0" operacao="' +
+                FCodOperacao +
+                '" codigo="D998"><mensagem tipo="I" id="000"><texto>A Prova está pausada, pois não há conexão com a Internet. Verifique sua conexão.</texto></mensagem></retorno>';
+            end
+            else
+            begin
+              Parametros.AguardarAviso := True;
+              Frm_Aviso := TFrm_AvisoConexao.Create(Self);
+
+              if Trim(Aviso) = '' then
+                Aviso := 'Verifique sua conexão e tente novamente.';
+
+              Frm_Aviso.Label1.Caption := Aviso;
+
+              if Frm_Aviso.ShowModal = mrYes then
+              begin
+
+              end
+              else
+              begin
+                FXmlRetorno :=
+                  '<?xml version="1.0" encoding="Latin1"?><retorno servidor="' +
+                  IntToStr(ParServidor.ID_Sistema) + '" usuario="0" operacao="'
+                  + FCodOperacao +
+                  '" codigo="D998"><mensagem tipo="I" id="000"><texto>A Prova está pausada, pois não há conexão com a Internet. Verifique sua conexão.</texto></mensagem></retorno>';
+              end;
+
+              Frm_Aviso.Free;
+
+            end;
+
+          end;
+
+        until (Parametros.NumeroAviso < 6);
+
+        if System.Pos('S997', PChar(FXmlRetorno)) > 0 then
+        begin
+          ArquivoLog.GravaArquivoLog(' erro: S997 - ' + FXmlRetorno);
+          if retToken.IsValid then
+          begin
+            ArquivoLog.GravaArquivoLog(FCodOperacao + ' Link ' + HttpRio.URL +
+              ' - retorno S997 ');
+            // FXmlRetorno := (HttpRio as Main).secure_execute(strID_Sistema, strToken, strXML);
+            FXmlRetorno :=
+              AESDecrypt((HttpRio as Main).cripto_execute(strID_Sistema,
+              strToken, AESEncrypt(strXML)));
+          end;
+
+        end;
+
+      end;
+
+    end
+    else
+    begin
+
+      if Debug then
+        ArquivoLog.GravaArquivoLog('Token off');
+
+      if (Trim(XMLRetorno) = '') then
+      begin
+
+        if Debug then
+          ArquivoLog.GravaArquivoLog('Link');
+
+        IndiceDoServidor := Random(Parametros.ListaServidores.Count - 1);
+        ListaLinks.Text := (Parametros.ListaServidores.Objects[IndiceDoServidor]
+          as TStringList).Text;
+        IndiceDoLink := Random(ListaLinks.Count - 1);
+
+        HttpRio.URL := ListaLinks[IndiceDoLink];
+        HttpRio.URL := ReplaceStr(HttpRio.URL, '/mcp/Operations',
+          '/mcp-5.0.0/Operations');
+        HttpRio.Service := Servico;
+        HttpRio.Port := Porta;
+
+        if (Parametros.ProxyURL <> '') and (Parametros.ProxyUsername <> '') and
+          (Parametros.ProxyPassword <> '') then
+        begin
+          HttpRio.HTTPWebNode.Proxy := Parametros.ProxyURL;
+          HttpRio.HTTPWebNode.Username := 'levi@grupocriar';
+          HttpRio.HTTPWebNode.Password := Parametros.ProxyPassword;
+        end;
+
+        ArquivoLog.GravaArquivoLog(FCodOperacao + ' Link ' + HttpRio.URL);
+
+        repeat
+
+          if net.PingDNSGrupoCRIAR then
+          begin
+
+            if Debug then
+              ArquivoLog.GravaArquivoLog(FCodOperacao + ' execute - Envio ' +
+                envio.Xml.Text);
+
+            FXmlRetorno := (HttpRio as Main).execute(strID_Sistema, strXML);
+
+            if Debug then
+              ArquivoLog.GravaArquivoLog(FCodOperacao + ' execute - Retorno ' +
+                FXmlRetorno);
+          end
+          else
+          begin
+            ArquivoLog.GravaArquivoLog('Ping falhou');
+            if Parametros.AguardarAviso then
+            else
+            begin
+
+              Parametros.AguardarAviso := True;
+              Frm_Aviso := TFrm_AvisoConexao.Create(Self);
+
+              if Trim(Aviso) = '' then
+                Aviso := 'Verifique sua conexão e tente novamente.';
+
+              Frm_Aviso.Label1.Caption := Aviso;
+
+              if Frm_Aviso.ShowModal = mrYes then
+              begin
+
+              end
+              else
+              begin
+                FXmlRetorno :=
+                  '<?xml version="1.0" encoding="Latin1"?><retorno servidor="' +
+                  IntToStr(ParServidor.ID_Sistema) + '" usuario="0" operacao="'
+                  + FCodOperacao +
+                  '" codigo="D998"><mensagem tipo="I" id="000"><texto>A Prova está pausada, pois não há conexão com a Internet. Verifique sua conexão.</texto></mensagem></retorno>';
+              end;
+
+              Frm_Aviso.Free;
+
+            end;
+
+          end;
+
+        until (Parametros.NumeroAviso < 6);
+
+        if System.Pos('S997', PChar(FXmlRetorno)) > 0 then
+        begin
+          ArquivoLog.GravaArquivoLog('erro: S997 - ' + FXmlRetorno);
+          if retToken.IsValid then
+          begin
+            ArquivoLog.GravaArquivoLog(FCodOperacao + ' Link ' + HttpRio.URL +
+              ' - retorno S997 ');
+            // FXmlRetorno := (HttpRio as Main).secure_execute(strID_Sistema, strToken, strXML);
+            FXmlRetorno :=
+              AESDecrypt((HttpRio as Main).cripto_execute(strID_Sistema,
+              strToken, AESEncrypt(strXML)));
+          end;
+
+        end;
+
+      end;
+
+    end;
+
+    Exit;
+
+  except
+    on E: Exception do
+    begin
+      Sleep(100);
+
+      if Debug then
+        ArquivoLog.GravaArquivoLog('Retorno: ' + E.Message);
+
+    end;
+  end;
+
+end;
+
+procedure MainOperacao.HttpRioBeforeExecute(const MethodName: string;
+  Request: TStream);
+var
+  timeout: Integer;
+begin
+
+  timeout := -1;
+
+  try
+    if Parametros.ListaOperacoes.IndexOf(FCodOperacao) > -1 then
+    begin
+      if StrToIntDef(Parametros.ListaOperacoesTimeOut
+        [Parametros.ListaOperacoes.IndexOf(FCodOperacao)], -1) > -1 then
+      begin
+        timeout := StrToInt(Parametros.ListaOperacoesTimeOut
+          [Parametros.ListaOperacoes.IndexOf(FCodOperacao)]);
+      end;
+    end;
+
+  except
+    on E: Exception do
+
+  end;
+
+  if timeout = -1 then
+  begin
+    if (FCodOperacao = '200100') or (FCodOperacao = '200710') or
+      (FCodOperacao = '100700') or (FCodOperacao = '200400') or
+      (FCodOperacao = '100100') or (FCodOperacao = '300100') then
+      timeout := 160000
+    else
+      timeout := 115000;
+  end;
+
+  InternetSetOption(nil, INTERNET_OPTION_CONNECT_TIMEOUT, Pointer(@timeout),
+    sizeof(timeout));
+  InternetSetOption(nil, INTERNET_OPTION_SEND_TIMEOUT, Pointer(@timeout),
+    sizeof(timeout));
+  InternetSetOption(nil, INTERNET_OPTION_RECEIVE_TIMEOUT, Pointer(@timeout),
+    sizeof(timeout));
+
+  ArquivoLog.GravaArquivoLog(FCodOperacao + ' timeout: ' + IntToStr(timeout));
+
+end;
+
+procedure MainOperacao.SetRetornoPadrao(Xml: WideString);
+begin
+  FXmlRetornoPadrao := Xml;
+end;
+
+function MainOperacao.GetRetornoPadrao(): WideString;
+begin
+  Result := FXmlRetornoPadrao;
+end;
+
+end.

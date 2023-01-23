@@ -1,0 +1,137 @@
+unit ClsRetornoToken;
+
+interface
+
+uses
+  Xml.xmldom, Xml.XMLIntf, Xml.Win.msxmldom, Xml.XMLDoc, System.SysUtils,
+  System.Classes,
+  ClsRetornoMCP, IdCoderMIME;
+
+type
+
+  TRetToken = class(TRetornoMCP)
+    Exp: TDateTime;
+    XMLHash: string;
+    Function GetToken(XMLDoc: IXMLDocument): string;
+  private
+    function StrDataTimeInverte(wStr1: String): String;
+  end;
+
+var
+  retToken: TRetToken;
+
+implementation
+
+{ TRetToken }
+
+function TRetToken.GetToken(XMLDoc: IXMLDocument): string;
+var
+  NoRetorno: IXMLNode;
+  lstToken: TStringList;
+  decoder: TIdDecoderMIME;
+  StrExp: string;
+  lstExp: TStringList;
+begin
+
+  lstToken := TStringList.Create;
+  lstToken.Delimiter := '.';
+
+  lstExp := TStringList.Create;
+  lstExp.Delimiter := ',';
+
+  decoder := TIdDecoderMIME.Create(nil);
+
+  Self.Retorno(XMLDoc);
+
+  try
+
+    if Self.IsValid then
+    begin
+
+      Result := '';
+      XMLDoc.Active := False;
+      XMLDoc.Active := True;
+
+      NoRetorno := XMLDoc.ChildNodes.FindNode('retorno');
+
+      if NoRetorno <> nil then
+      begin
+        Result := NoRetorno.ChildNodes.FindNode('token').Text;
+        XMLHash := XMLDoc.Xml.Text;
+      end;
+
+      lstToken.DelimitedText := Result;
+
+      if lstToken.Count >= 3 then
+      begin
+        {
+          "iss":"mastercontrol",
+          "exp":"1523651037",
+          "geracao":"20180413162357",
+          "servidor":"259403",
+          "id":"421"
+        }
+
+        lstExp.DelimitedText := decoder.DecodeString(lstToken[1]);
+
+        if lstExp.Count >= 4 then
+        begin
+
+          // ':"1523651037"'
+          // Exp := (strtoint(StrExp) / 86400) + 25569;
+          // Exp : '20180418132407'
+          // Exp : '2018 04 18 13 24 07'
+
+          StrExp := StringReplace(lstExp[2], ':"', '', [rfReplaceAll]);
+          StrExp := StringReplace(StrExp, '"', '', [rfReplaceAll]);
+
+          Exp := StrToDateTimeDef(StrDataTimeInverte(StrExp), Now);
+
+        end;
+
+      end;
+
+    end;
+
+  except
+    on E: Exception do
+    begin
+      Self.FCodigo := 'D998';
+      Self.FMensagem := 'Sem Token';
+      Self.FMensagemTipo := 'E';
+      XMLDoc.Active := False;
+    end;
+  end;
+
+end;
+
+function TRetToken.StrDataTimeInverte(wStr1: String): String;
+var
+  StrAno: string;
+  StrMes: string;
+  StrDia: string;
+  StrHora: string;
+  StrMinuto: string;
+  StrSegundo: string;
+begin
+
+  Result := '';
+  if Length(wStr1) > 0 then
+  begin
+
+    StrAno := copy(wStr1, 1, 4);
+    StrMes := copy(wStr1, 5, 2);
+    StrDia := copy(wStr1, 7, 2);
+
+    StrHora := copy(wStr1, 9, 2);
+    StrMinuto := copy(wStr1, 11, 2);
+    StrSegundo := copy(wStr1, 13, 2);
+
+    Result := StrDia + '/' + StrMes + '/' + StrAno + StrHora + ':' + StrMinuto +
+      ':' + StrSegundo;
+
+  end;
+
+end;
+
+end.

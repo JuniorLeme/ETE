@@ -1,0 +1,31 @@
+unit ClsEnvio.Inicio.SEITran;
+
+interface
+
+uses
+  Cls.Json, System.Generics.Collections, REST.Json.Types;
+
+{$M+}
+
+type
+  TEnvioInicioSEITran = class(TJsonDTO)
+  private
+    Fcfc: string;
+    Fcpf: string;
+  published
+    property cfc: string read Fcfc write Fcfc;
+    property cpf: string read Fcpf write Fcpf;
+  end;
+
+  TEnvioFinalSEITran = class(TJsonDTO)
+  private
+    Fcfc: string;
+    Fcpf: string;
+  published
+    property cfc: string read Fcfc write Fcfc;
+    property cpf: string read Fcpf write Fcpf;
+  end;
+
+implementation
+
+end.

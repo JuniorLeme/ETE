@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2020/11/18 09:21:36.000.567,C:\Projetos\v3.3.3\Fontes\eProvaXE.groupproj=C:\Projetos\v3.3.3\Fontes\ETEXE.groupproj</Transaction>
+    <Transaction>2020/11/18 09:21:53.000.737,C:\Projetos\v3.3.3\Fontes\ETEXE.groupproj=C:\Projetos\v3.3.3\Fontes\ETE-XE.groupproj</Transaction>
+  </Transactions>
+	<Default.Personality>
+		<Projects ActiveProject="C:\Repositorio\Fontes\ETE\Trunk\Fontes\ETE_XE.dproj"/>
+	</Default.Personality>
+</BorlandProject>
